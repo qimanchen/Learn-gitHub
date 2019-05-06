@@ -43,6 +43,15 @@ class SCPIOpticalSwitchControl(object):
         # 存储设备中所有端口的状态
         self.port_states = {}
 
+    def check_serial_link(self):
+        """
+            测试serial端口连接是否还存在
+        """
+        if hasattr(self._ser, "isOpen"):
+            return self._ser.isOpen()
+        else:
+            Logger.info("当前设备还未建立过任何连接")
+
     def open_connect(self):
         """建立一个连接"""
         # format 会把花括号内的看成一个变量
@@ -110,6 +119,7 @@ class SCPIOpticalSwitchControl(object):
         """
         if hasattr(self._ser, 'isOpen') and self._ser.isOpen():
             self._ser.close()
+            Logger.info("serial 端口连接关闭")
         else:
             Logger.info("连接不存在 或 连接已关闭")
 
