@@ -370,7 +370,7 @@ class WssControl(object):
         """
         得到设备中已用端口
         """
-        channl_list = self.check_rca_all_channel()
+        channel_list = self.check_rca_all_channel()
         self.use_channel = []
         for channel in channel_list:
             if channel[1] != '99':
