@@ -16,7 +16,7 @@ Logger = logging.getLogger(__name__)
 
 
 class WssControl(object):
-<<<<<<< HEAD
+
     """
         调用serial模块中的相应的功能，
         得到或设置WSS的相关配置
@@ -652,7 +652,6 @@ class WssControl(object):
             return message
         else:
             Logger.info("CLE 设置出错")
-=======
     """
         调用serial模块中的相应的功能，
         得到或设置WSS的相关配置
@@ -1288,7 +1287,6 @@ class WssControl(object):
             return message
         else:
             Logger.info("CLE 设置出错")
->>>>>>> aa1649f7d27fd2a2119cabe4977bc1f1f881bb7a
 
 
 # 测试函数
