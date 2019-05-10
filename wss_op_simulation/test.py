@@ -8,12 +8,20 @@
 from logger import Logger
 logger = Logger(__name__).Logger
 import logging
+from chain_list import LList, LListEnd
+from read_to_txt import FileReadWrite
 
 def test_logger():
-	logger.info("test Logger")
-	
-	
+    logger.info("test Logger")
+    
+def test_chain_list(): 
+    llist = LList()
+    llistend = LListEnd()
+    
 if __name__ == "__main__":
-	test_logger()
-	logger.info("test")
-	logging.info("test logging")
+    read_file = FileReadWrite('test_write.txt', 'w+')
+    
+    
+
+            
+            

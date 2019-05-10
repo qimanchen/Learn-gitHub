@@ -5,3 +5,9 @@
 拓扑生成：
 该程序主要为生成相应的拓扑
 """
+
+
+from logger import Logger
+logger = Logger(__name__).Logger
+
+
