@@ -18,7 +18,10 @@ class FileReadWrite(object):
 	def __init__(self, file_name, open_type):
 		# 打开一个文件，读入方式为覆盖写入
 		# 组建指定目录
-		dict = self.join_dict()
+		if 'w' not in open_type:
+			dict = self.join_dict()
+		else:
+			dict = ''
 		self.file_name = dict + file_name
 		self.open_type = open_type
 		self._file = open(self.file_name, self.open_type)

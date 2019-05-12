@@ -19,7 +19,7 @@ def test_chain_list():
     llistend = LListEnd()
     
 if __name__ == "__main__":
-    read_file = FileReadWrite('test_write.txt', 'w+')
+    read_file = FileReadWrite('test_write.txt', 'r')
     
     
 
