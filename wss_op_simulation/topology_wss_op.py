@@ -8,6 +8,29 @@
 from wss_osm_para import  OSMSIZE, DEGREE, BVTNUM , RACKNUM, UPWSS, DOWNWSS, WSSSLOT
 
 
+class OSMPort(object):
+	"""
+	定义osm的每一个端口的数据结构
+	"""
+	
+	def __init__(self):
+		pass
+		
+class WSSPort(object):
+	"""
+	定义wss的每一个端口的数据结构
+	"""
+	
+	def __init__(self):
+		pass
+		
+
+class Bvt(object):
+	"""
+	定义每一个收发机的状态数据结构
+	"""
+
+
 class OSM(object):
 	"""
 	建立osm的连接，同时管理
