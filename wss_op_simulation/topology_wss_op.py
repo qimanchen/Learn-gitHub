@@ -5,7 +5,7 @@
 拓扑生成及操作文件
 """
 # 导入设备参数
-from wss_osm_para import  OSMSIZE, DEGREE, BVTNUM , RACKNUM, UPWSS, DOWNWSS, WSSSLOT
+from wss_osm_para import  OSMSIZE, DEGREE, BVTNUM, RACKNUM, UPWSS, DOWNWSS, WSSSLOT
 
 
 class OSMPort(object):
@@ -13,11 +13,13 @@ class OSMPort(object):
 	定义osm的每一个端口的数据结构
 	"""
 	
-	def __init__(self, port_num, port_type='input', port_status=ENABLE, port_use=None, wave=None):
+	def __init__(self, port_num, port_type='input', port_status='ENABLE', port_use=None, physic_port=None, wave=None):
 		self._port_num = port_num # 端口号
 		self._port_type = port_type # 端口类型 - input， output
 		self._port_status = port_status # 端口的可用状态 -- ENABLE, DISABLED
-		self._port_use = port_use # 端口是否已经连接到其他结点, None-未连接到其他结点，
+		self._port_use = port_use # 端口是否与光开关的另外的端口相连 -- 光开关内部的连接, None-未连接到其他结点，
+
+		self._physic_port = physic_port # 物理连接端口
 		self._wave = port_num # 端口中传输的波长
 
 	@property
@@ -32,6 +34,11 @@ class OSMPort(object):
 	def port_status(self):
 		return self._port_status
 
+	@port_status.setter
+	def port_status(self, status):
+		# 修改port的状态
+		self._port_status = status
+
 	@property
 	def port_use(self):
 		return self._port_use
@@ -42,15 +49,25 @@ class OSMPort(object):
 		改变port的连接状态
 		"""
 		self._port_use = port_change
+
+	@property
+	def physic_port(self):
+		return self._physic_port
 	
 	@property
 	def wave(self):
 		return self._wave
+	@wave.setter
+	def wave(self, wavelength):
+		"""
+		端口中的通信波长设置
+		"""
+		self._wave = wavelength
 
 
-class OSMLink(object):
+class OSMOpticalLink(object):
 	"""
-	定义osm中每一条链的数据结构
+	定义osm内部的光连接链路
 	"""
 
 	def __init__(self, link_num, osm_port1=None, osm_port2=None, wave=None, bandwidth=None):
@@ -80,6 +97,10 @@ class OSM(object):
 	2、还是直接不建立连接，每次请求到来时都新建立连接
 	但这会导致一个问题，就是一个rack完全只与另一个rack相连
 	还有是否考虑osm是双向还是单向（一进一出）
+
+	# 设计optical端口编号
+	# input - 从1 - degree*rack_num
+	# output - 从 degree*rack_num+1 -- degree*rack_num*2
 	
 	"""
 	def __init__(self):
@@ -107,19 +128,30 @@ class WSSPort(object):
 	wss的每个port都有相应的 channel plan
 	"""
 	
-	def __init__(self):
-		pass
-		
+	def __init__(self, port_num, port_type='input', slot=None):
+		self._port_num = port_num # wss的端口编号
+		self._port_type = port_type # 端口类型 'input', 'output'
+		self._slot = slot
 
-class Bvt(object):
+
+class WSSOpticalLink(object):
 	"""
-	定义每一个收发机的状态数据结构
+	wss内部的光连接，主要需要统一设置slot模式
+	连接的建立：默认设置的slot范围相同即为相连
 	"""
 
 
 class WSS(object):
 	"""
 	建立一个wss对象，同时管理wss
+	wss编号设置:
+	1. 上行wss
+	input: 连接bvt 1-M,转接M+1 -- D+M
+	output: D+M+1 -- D+D+M
+
+	2.下行wss
+	input: 1-D
+	output: D+1 - D+M 连接bvt， D+M+1 -- D+M+D 连接上行wss
 	"""
 	def __init__(self, wss_type='up'):
 		self._wss_type = wss_type # wss类型 - 'up'上行wss, 'down'下行wss
@@ -140,6 +172,12 @@ class WSS(object):
 		"""
 		检测端口
 		"""
+		
+
+class Bvt(object):
+	"""
+	定义每一个收发机的状态数据结构
+	"""
 	
 	
 class Topology(object):
