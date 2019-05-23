@@ -5,21 +5,20 @@
 """
 该模块主要为测试其他模块使用的类
 """
-from logger import Logger
-logger = Logger(__name__).Logger
-import logging
-from chain_list import LList, LListEnd
-from read_to_txt import FileReadWrite
-
-def test_logger():
-    logger.info("test Logger")
-    
-def test_chain_list(): 
-    llist = LList()
-    llistend = LListEnd()
+from topology_wss_op import OSM
+from topology_wss_op import OSMOpticalLink
     
 if __name__ == "__main__":
-    read_file = FileReadWrite('test_write.txt', 'r')
+    osm = OSM()
+    osm.create_connect(1,13)
+    osm.create_connect(2,14)
+    print(osm.optical_link['1'].link_use)
+    print(osm.check_connect(1))
+    osm.delete_connect(1)
+    print(osm.check_connect(1))
+    print(osm.link_num)
+
+
     
     
 
