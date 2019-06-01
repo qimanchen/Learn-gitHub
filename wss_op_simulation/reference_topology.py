@@ -54,7 +54,7 @@ def write_topo(start_degree):
 	:params start_degree: 拓扑的二维数组
 	"""
 
-	filename = "topo_file\\rack{}_degree{}.txt".format(RACKNUM, DEGREE)
+	filename = "topo_file/rack{}_degree{}.txt".format(RACKNUM, DEGREE)
 
 	# 当文件已经存在时，禁止再次创建直接退出程序
 
@@ -81,7 +81,7 @@ def read_topo(file_name):
 	读取拓扑文件
 	:params file_name: 指定的拓扑的文件名
 	"""
-	filename = 'topo_file\\' + file_name
+	filename = file_name
 	topo_link = {}
 	# topo_link = {'1': ['None', 'None', 'None', '4', '5'], ...} rack5_degree2
 	# rack_num: ['None' -- 没有直接连接的rack， ‘4’ -- 直接相连的rack]

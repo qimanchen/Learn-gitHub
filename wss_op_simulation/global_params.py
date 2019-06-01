@@ -27,4 +27,6 @@ VNF_NEED_MIN_CPU = 50
 # 网络链路带宽资源参数
 
 # 物理网络计算资源参数
+INIT_BANDWIDTH = 100 # 初始带宽资源
+INIT_COMPUTER_RESOURCE = 100 # 初始计算资源
 
