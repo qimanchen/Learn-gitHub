@@ -39,6 +39,7 @@ def create_topology(num_node=RACKNUM, degree=DEGREE):
 		write_topo(topo_list)
 	return filename
 
+
 class OSMPort(object):
 	"""
 	定义osm的每一个端口的数据结构
@@ -72,12 +73,17 @@ class OSMOpticalLink(object):
 		self.start_port = osm_port1 # 起始结点对象 -- port_type='input'
 		self.end_port = osm_port2 # 终结点对象 -- port_type='output'
 		self.link_use = link_use # 检测该光学连接是否在使用中
-		# self._bandwidth = INIT_BANDWIDTH # 初始化拥有的带宽资源
-		# self.bandwidth_use = 0 # 已经使用后的带宽资源
+
+		# 当osm光路中仅存在一条链路时使用
+		self._bandwidth = INIT_BANDWIDTH # 初始化拥有的带宽资源
+		self.bandwidth_use = 0 # 已经使用后的带宽资源
+
 		# 一条osm的光路可能包含多条wss的光路  -- WSSOpticalLink
 		# 带宽以这里面为准
+		# 当它为None时，表示该osm两端还没有建立任何通信链路
+		# 即表示当link_use = None
 		self.wss_link = None
-
+	
 	@property
 	def bandwidth(self):
 		return self._bandwidth
@@ -277,15 +283,21 @@ class WSSOpticalLink(object):
 		# 链路通信使用的slot
 		self.slot_plan = slot_plan # slot分配
 		# wss内部连接
+		# 输入端口
 		self.in_port = in_port # port对象
 		# 输出端口列表
 		self.out_port = out_port # port对象
 		# 链路是否在使用
 		self.link_use = link_use
 
+		# 当前链路使用的recv or trans
+		# 上行wss -- Recv object
+		# 下行wss -- Trans object
+		self.bvt = None
+
 		# 确定内部可用的带宽
 		self._bandwidth = INIT_BANDWIDTH
-		self.bandwidth_use = 0
+		self.bandwidth_avaliable = 0
 
 	@property
 	def bandwidth(self):
@@ -329,8 +341,8 @@ class WSS(object):
 		self.slot_plan_use = []
 
 		# wss内部的路由记录
-		# 注意 up wss的链路是技术输入端口 （小数字端口）
-		# down wss 记录输出端口（大数字输入端口）
+		# up_wss的链路是记录输入端口 {in_port:link_object}
+		# down wss 记录输出端口（大数字输入端口）{out_port:link_object}
 		self.optical_link = {}
 
 		# 初始化wss的端口
@@ -340,6 +352,12 @@ class WSS(object):
 		self._port = {}
 		self._port.update(self.in_port)
 		self._port.update(self.out_port)
+
+	def check_avaliable_link(self):
+		"""
+		检测已经建立的链路中可用链路的带宽
+		"""
+		return [bw.avaliable_resource for bw in self.optical_link.values()]
 
 	@property
 	def port(self):
@@ -434,7 +452,6 @@ class WSS(object):
 		"""
 		更新wss slot plan 为内部连接转换实现
 		"""
-
 
 	def set_up_wss(self, slot_plan, in_port, out_port):
 		"""
@@ -591,13 +608,79 @@ class WSS(object):
 			self.delete_down_wss(inport, outport)
 	
 
+class Recv(object):
+	"""
+	接收机
+	"""
+	def __init__(self, recv_num, rack= None, recv_wave=None, recv_use=False):
+		self._recv_num = recv_num # 接收机编号
+		self.recv_wave = recv_wave # 接收机接收波长
+		self.recv_use = recv_use # 接收机使用状态
+		self.recv_port = None # 接收机连接下行wss的端口
+		self.to_rack =None # 接收机接收信号来源的rack
+		self._rack = rack # 接收机所在的rack
+
+	@property
+	def recv_num(self):
+		return self._recv_num
+
+	@property
+	def rack(self):
+		return self._rack
+	
+
+class Trans(object):
+	"""
+	发射机
+	"""
+	def __init__(self, trans_num, rack=None, trans_wave=None, trans_use=False):
+		self._trans_num = trans_num # 发射机的编号
+		self._rack = rack # 发射机所在rack
+		self.trans_wave = trans_wave # 发射机发射的波长
+		self.trans_use = trans_use # 发射机使用的状态
+		self.trans_port = None # 发射机连接的上行wss的port
+		self.to_rack = None # 发射机发射波长的目标rack
+
+	@property
+	def trans_num(self):
+		return self._trans_num
+
+	@property
+	def rack(self):
+		return self._rack
+	
+	
+class Host(object):
+	"""
+	rack 内的host主机
+	"""
+	def __init__(self, host_num, rack=None, host_use=False):
+		self._host_num = host_num # 主机编号
+		self._rack = rack # 主机所所属rack
+		self.host_use = host_use # 检测主机是否在使用
+		self.recv = None # 主机包含的接收机 - 哈希表{recv_num:recv_object}
+		self.trans = None # 主机包含的发射机 - 哈希表{trans_num:trans_object}
+		# 主机拥有的初始资源
+		self._computer_resource = INIT_COMPUTER_RESOURCE
+		self.avaliable_resource = None # 主机中的可用资源
+		self.maping_sc = None # 主机中映射的链 - 哈希表{}
+		self.maping_vnf = None # 主机中映射的VNF - 哈希表
+
+	@property
+	def host_num(self):
+		return self._host_num
+
+	@property
+	def rack(self):
+		return self._rack
+	
+	
 class Bvt(object):
 	"""
 	定义每一个收发机的状态数据结构
 	每台bvt发射的波长是确定的
 	slot的范围是确定的
 	"""
-
 	def __init__(self, bvt_num, send_wave=None, recv_wave=None, bvt_use=False):
 		self._bvt_num = bvt_num # 收发机的编号
 		self.bvt_use = bvt_use # 检测bvt是否已经使用了
@@ -605,9 +688,11 @@ class Bvt(object):
 		self.recv_wave = recv_wave # 接收的波长，slot 范围 ex. [1,2,3,4]
 		self.send_port = None # 发送端连接的wss物理端口
 		self.recv_port = None # 接收端连接的wss物理端口
-		# self.send_to_rack = None # 指定发送到的racki
-		# self.recv_to_rack = None # 确定接收来自racki的信号
-		self.rack_to = None # 指定连接的rack
+
+		# 指定收发机的连接的rack
+		self.send_to_rack = None # 指定发送到的racki
+		self.recv_from_rack = None # 确定接收来自racki的信号
+		# self.rack_to = None # 指定连接的rack
 		# 初始计算资源
 		self._computer_resource = INIT_COMPUTER_RESOURCE
 		# # 更新带宽资源
@@ -616,20 +701,12 @@ class Bvt(object):
 		# self.bandwidth_use = 0
 		# 使用了的计算资源
 		self.computer_use = 0
+		# 映射到此的服务链的一个vnf -- 此处记录相应的链表
+		self.mapping_sc = None
 
 	@property
 	def bvt_num(self):
 		return self._bvt_num
-
-	@property
-	def computer_resource(self):
-		return self._computer_resource
-
-	def get_avaliable_computer_resource(self):
-		"""
-		获得该bvt内部的可用的计算资源
-		"""
-		return self._computer_resource - self.computer_use
 	
 
 class RackPort(object):
@@ -657,18 +734,24 @@ class Rack(object):
 	def __init__(self, rack_num, bvts=BVTNUM, degrees=DEGREE, osm_size=OSMSIZE):
 		# rack编号
 		self._rack_num = rack_num
+		self.bvt_num = bvts # recv和trans的数量
 
 		# 上行wss
 		self.up_wss = WSS(rack_num, wss_type='up')
 		# 下行wss
 		self.down_wss = WSS(rack_num, wss_type='down')
 
-		# bvt 列表
-		self.bvt = {str(i):Bvt(i) for i in range(1, bvts+1)}
-		self.bvt_num = bvts
-		# 可用bvt列表
-		self.bvt_avaliable = []
-		self.renew_avaliable_bvt()
+		# recv 列表
+		self.recv_list = {str(i): Recv(i, rack_num) for i in range(1, bvts+1)}
+		self.recv_using = {} # 正在使用中的recv
+		# trans 列表
+		self.trans_list = {str(i): Trans(i, rack_num) for i in range(1, bvts+1)}
+		self.trans_using = {} # 正在使用中trans
+		
+		# host 列表
+		self.host_list = {str(i): Recv(i, rack_num) for i in range(1, bvts+1)}
+		self.host_using = {} # 正在使用中的trans
+
 		# # 上行输出端口，osm的输入端口
 		self.in_port_list = [i for i in range(degrees*(rack_num-1)+1, degrees*(rack_num)+1)]
 		# 下行输入端口，osm的输出端口
@@ -687,58 +770,8 @@ class Rack(object):
 		# self._out_port = {}
 
 		self.set_link_osm() # 设置wss与osm的物理连接
-		self.set_link_bvt() # 设置wss与bvt的物理连接
+		self.set_link_bvt() # 设置wss与recv和trans的物理连接
 		self.set_up_down() # 设置上行wss与下行wss的连接
-
-	def get_recv_bvt(self, end_rack):
-		"""
-		获取当前可用的接收机
-		当存在已使用的接收的收发机时
-		检测连接的rack是否为之前的rack
-		若是，则不用开新的接收机
-		否则开启新的接收机
-		"""
-		for i in self.bvt:
-			if self.bvt[i].rack_to == end_rack and self.bvt[i].slot_plan == slot_plan:
-				return i
-		else:
-			return False
-
-	def get_send_bvt(self, end_rack):
-		"""
-		获取当前可用的发射机
-		"""
-		for i in self.bvt:
-			if self.bvt[i].rack_to == start_rack:
-				pass
-
-
-	def get_goal_bvt(self, end_rack, resource_required=0):
-		"""
-		当已经存在使用的bvt时
-		获取目标bvt
-		:param end_rack: 目标rack
-		"""
-		for i in self.bvt:
-			# 检测到有相应的bvt连接
-			if (self.bvt[i] not in self.bvt_avaliable) and (self.bvt[i].rack_to == end_rack):
-				avaliable_resource = self.bvt[i].get_avaliable_computer_resource()
-				if avaliable_resource >= resource_required:
-					# 返回相应的rack编号
-					return i 
-		else:
-			# 没有可以已经在使用的收发机
-			return False
-
-	def renew_avaliable_bvt(self):
-		"""
-		更新bvt可用列表
-		得到未使用的收发机
-		"""
-		for i in self.bvt:
-			# 检测到未使用的收发机
-			if not self.bvt[i].bvt_use:
-				self.bvt_avaliable.append(self.bvt[i])
 
 	@property
 	def rack_num(self):
@@ -751,27 +784,8 @@ class Rack(object):
 	@property
 	def out_port(self):
 		return self._out_port
-	
-	def check_useable_bvt(self):
-		"""
-		检测该rack中可用的收发机的数量
-		"""
-		useable_bvt = [] # 可用bvt编号
-		for i in self.bvt:
-			if not self.bvt[i].bvt_use:
-				useable_bvt.append(int(i))
-		return useable_bvt
 
-	def set_bvt_wave(self):
-		"""
-		开启收发机
-		"""
-
-	def clear_bvt_wave(self):
-		"""
-		释放收发机
-		"""
-
+	# 建立相应的物理连接
 	def set_link_osm(self):
 		"""
 		设置连接到osm的端口
@@ -783,6 +797,7 @@ class Rack(object):
 		# 连接上行wss
 		for i in self.up_wss.out_port:
 			# 上行wss的输出连接着osm的输入
+			# osm的端口号
 			self.up_wss.out_port[i].physic_port = self.in_port_list[count]
 			# rack输出端对应着上行wss的输出
 			self._out_port[str(self.in_port_list[count])].wss_port = self.up_wss.out_port[i]
@@ -799,18 +814,18 @@ class Rack(object):
 	def set_link_bvt(self):
 		"""
 		设置连接到bvt
-		上行wss的输入端口连接的是bvt
-		下行wss的输出端口连接的是bvt
-		连接的是对应的bvt编号
+		上行wss的输入端口连接的是recv
+		下行wss的输出端口连接的是trans
+		连接的是对应的recv
 		"""
 		count = 0
-		bvt_num_list = [i for i in range(1, self.bvt_num+1)]
+		bvt_num_list = [str(i) for i in range(1, self.bvt_num+1)]
 		# 连接上行wss
 		for i in self.up_wss.in_port:
 			
-			self.up_wss.in_port[i].physic_port = bvt_num_list[count]
+			self.up_wss.in_port[i].physic_port = self.trans_list[bvt_num_list[count]]
 			# 收发机的发送端对应着上行wss的输入
-			self.bvt[str(bvt_num_list[count])].send_port = self.up_wss.in_port[i]
+			self.trans_list[bvt_num_list[count]].trans_port = self.up_wss.in_port[i]
 			# 若达到bvt数则退出，其余接口为wss之间的连接
 			count += 1
 			if count == self.bvt_num:
@@ -818,9 +833,9 @@ class Rack(object):
 		# 连接下行wss
 		count = 0
 		for i in self.down_wss.out_port:
-			self.down_wss.out_port[i].physic_port = bvt_num_list[count]
+			self.down_wss.out_port[i].physic_port = self.recv_list[bvt_num_list[count]]
 			# 收发机的接收端对应着wss的输出
-			self.bvt[str(bvt_num_list[count])].recv_port = self.down_wss.out_port[i]
+			self.recv_list[bvt_num_list[count]].recv_port = self.down_wss.out_port[i]
 			count += 1
 			if count == self.bvt_num:
 				break
