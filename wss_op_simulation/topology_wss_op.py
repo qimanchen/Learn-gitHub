@@ -78,10 +78,15 @@ class OSMOpticalLink(object):
 		self._bandwidth = INIT_BANDWIDTH # 初始化拥有的带宽资源
 		self.bandwidth_use = 0 # 已经使用后的带宽资源
 
+		self.bandwidth_list = None
+		self.bandwidth_use_list = None
+
 		# 一条osm的光路可能包含多条wss的光路  -- WSSOpticalLink
 		# 带宽以这里面为准
 		# 当它为None时，表示该osm两端还没有建立任何通信链路
 		# 即表示当link_use = None
+		# 只记录对应的start rack 的 up_wss的链路
+		# {'start_wss_in_port'_'start_wss_out_port': up_wss WssOpticalLink}
 		self.wss_link = None
 	
 	@property
@@ -297,7 +302,7 @@ class WSSOpticalLink(object):
 
 		# 确定内部可用的带宽
 		self._bandwidth = INIT_BANDWIDTH
-		self.bandwidth_avaliable = 0
+		self.bandwidth_avaliable = self._bandwidth
 
 	@property
 	def bandwidth(self):
@@ -663,8 +668,8 @@ class Host(object):
 		# 主机拥有的初始资源
 		self._computer_resource = INIT_COMPUTER_RESOURCE
 		self.avaliable_resource = None # 主机中的可用资源
-		self.maping_sc = None # 主机中映射的链 - 哈希表{}
-		self.maping_vnf = None # 主机中映射的VNF - 哈希表
+		self.maping_sc = None # 主机中映射的链 - 哈希表
+		self.maping_vnf = None # 主机中映射的VNF - 哈希表{'start_vnf':end_vnf}
 
 	@property
 	def host_num(self):
@@ -725,6 +730,23 @@ class RackPort(object):
 		# 指定端口是否已经连接到osm，topo初始化时检测使用
 		self.port_use = port_use
 
+class RackLink(object):
+	"""
+	两个rack之间的相连
+	"""
+	def __init__(self):
+		self.start_rack = None # start_rack # 发射信号的rack
+		self.end_rack = None # end_rack # 接收信号的rack
+		self.osm_link = None # osm_link # osm中的连接链路
+		self.start_wss_link = None # start_up_wss 的连接链路
+		self.end_wss_link = None # end_down_wss 的连接链路
+		self.trans = None # trans # 发射信号的发射机
+		self.recv = None # recv # 接收信号的接收机
+		self.slot_plan = None # 链路中的波长
+
+		self.start_host = None # start rack中的host
+		self.end_host = None # end rack中的host
+
 
 class Rack(object):
 	"""
@@ -749,7 +771,7 @@ class Rack(object):
 		self.trans_using = {} # 正在使用中trans
 		
 		# host 列表
-		self.host_list = {str(i): Recv(i, rack_num) for i in range(1, bvts+1)}
+		self.host_list = {str(i): Host(i, rack_num) for i in range(1, bvts+1)}
 		self.host_using = {} # 正在使用中的trans
 
 		# # 上行输出端口，osm的输入端口
@@ -772,6 +794,39 @@ class Rack(object):
 		self.set_link_osm() # 设置wss与osm的物理连接
 		self.set_link_bvt() # 设置wss与recv和trans的物理连接
 		self.set_up_down() # 设置上行wss与下行wss的连接
+
+	def get_avaliable_host(self):
+		"""
+		检测没有使用过的host
+		"""
+		for i in self.host_list:
+			if i not in self.host_using:
+				return self.host_list[i]
+		else:
+			# 没有可用host
+			return None
+
+	def get_avaliable_trans(self):
+		"""
+		获取可用发射机 -- 未使用的
+		"""
+		for i in self.trans_list:
+			if i not in self.trans_using:
+				return self.trans_list[i]
+		else:
+			# 没有可用发射机
+			return None
+
+	def get_avaliable_recv(self):
+		"""
+		获取可用接收机 -- 未使用的
+		"""
+		for i in self.recv_list:
+			if i not in self.recv_using:
+				return self.recv_list[i]
+		else:
+			# 没有可用接收机
+			return None
 
 	@property
 	def rack_num(self):
@@ -872,11 +927,15 @@ class Topology(object):
 		# 初始化rack，多个rack初始化
 		self.racks = {str(i): Rack(i) for i in range(1, self.rack_num+1)}
 
+		# 记录rack之间完整链路的信息
+		# {'start_rack_num'_'end_rack_num'_'osm_in_put'_'out_put': RackLink}
+		self.rack_link = {} # 结构建RackLink
+
 		# 拓扑文件名
 		self.topo_file = topo_file
 		# 记录rack之间的链（osm之间的链）
 		self.link = {} #{'rack_num':[osm.optical_link object, 'None']}
-		# 提供链路的索引
+		# 提供链路的索引 -- 与拓扑文件一致 但只记录连接的结点
 		self.index_link = [] #[[] -- rack1 连接的结点]
 		# osm内部的光链路初始化，以及取得整个链路表
 		self.topo_list = self.read_topo_file()

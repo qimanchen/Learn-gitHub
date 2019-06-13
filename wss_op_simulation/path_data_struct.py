@@ -9,7 +9,7 @@
 """
 
 
-class OpticalPath(object):
+class OpticPath(object):
 	"""
 	光路数据结构
 	两个rack之间相连的物理光路

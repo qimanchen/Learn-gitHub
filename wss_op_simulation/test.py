@@ -7,9 +7,11 @@
 """
 from topology_wss_op import Topology,Rack
 from topology_wss_op import WSS
+from creat_link import creat_rack_osm_wss_link
+from creat_link import release_rack_osm_wss_link
 	
 if __name__ == "__main__":
-	# topology = Topology()
+	topology = Topology()
 
 	# # 确定对应的链路
 	# link_object = topology.link['1'][1]
@@ -79,9 +81,22 @@ if __name__ == "__main__":
 	# # 设置rack1中的wss光路 -- 上行wss
 	# # 设置rack2中的wss光路 -- 下行wss
 
-	rack = Rack(1)
-	for i in rack.up_wss.port.values():
-		print(i.physic_port)
+	rack_link = creat_rack_osm_wss_link(topology, 1, 2)
+	
+	rack_link2 = creat_rack_osm_wss_link(topology,1,4)
+	rack_link3 = creat_rack_osm_wss_link(topology,1,2)
+	release_rack_osm_wss_link(topology, 1, 2)
 
-	for i in rack.down_wss.port.values():
-		print(i.physic_port)
+	print(rack_link2.recv.recv_num)
+	print(topology.racks['1'].up_wss.slot_plan_use)
+	print(topology.racks['4'].down_wss.slot_plan_use)
+	print(topology.rack_link)
+	
+	
+
+
+
+def release_rack_osm_wss_link_resource(topo_object, start_rack, end_rack):
+	"""
+	当释放虚拟链路时,释放相应的物理层的资源
+	"""
