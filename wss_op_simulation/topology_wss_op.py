@@ -488,8 +488,8 @@ class WSS(object):
 		# 设置端口连接的端口
 		inport.optical_port = outport
 		if outport.optical_port is None:
-			outport.optical_port = []
-		outport.optical_port.append(inport)
+			outport.optical_port = {}
+		outport.optical_port[str(inport.port_num)] = inport
 
 		# 更新端口状态
 		inport.port_use = True
@@ -512,7 +512,7 @@ class WSS(object):
 
 		# 更新连接端口
 		inport.optical_port = None
-		outport.optical_port.remove(inport)
+		del outport.optical_port[str(inport.port_num)]
 
 		# 更新端口状态
 		inport.port_use = False
@@ -549,8 +549,8 @@ class WSS(object):
 		# 设置端口连接的端口
 		outport.optical_port = inport
 		if inport.optical_port is None:
-			inport.optical_port = []
-		inport.optical_port.append(outport)
+			inport.optical_port = {}
+		inport.optical_port[str(outport.port_num)] = outport
 
 		# 更新端口状态
 		outport.port_use = True
@@ -573,7 +573,7 @@ class WSS(object):
 
 		# 更新连接端口
 		outport.optical_port = None
-		inport.optical_port.remove(outport)
+		del inport.optical_port[str(outport.port_num)]
 
 		# 更新端口状态
 		outport.port_use = False
@@ -667,7 +667,7 @@ class Host(object):
 		self.trans = None # 主机包含的发射机 - 哈希表{trans_num:trans_object}
 		# 主机拥有的初始资源
 		self._computer_resource = INIT_COMPUTER_RESOURCE
-		self.avaliable_resource = None # 主机中的可用资源
+		self.avaliable_resource = self._computer_resource # 主机中的可用资源
 		self.maping_sc = None # 主机中映射的链 - 哈希表
 		self.maping_vnf = None # 主机中映射的VNF - 哈希表{'start_vnf':end_vnf}
 
@@ -705,7 +705,7 @@ class Bvt(object):
 		# # 已经使用的带宽
 		# self.bandwidth_use = 0
 		# 使用了的计算资源
-		self.computer_use = 0
+		self.computer_avaliable = self._computer_resource
 		# 映射到此的服务链的一个vnf -- 此处记录相应的链表
 		self.mapping_sc = None
 
@@ -747,6 +747,15 @@ class RackLink(object):
 		self.start_host = None # start rack中的host
 		self.end_host = None # end rack中的host
 
+class DownUpWssLink(object):
+	"""
+	下行wss连接上行wss的转接链路
+	"""
+	def __init__(self, start_port, end_port, link_use=False):
+		self.start_port = start_port # 下行wss的端口
+		self.end_port = end_port # 上行wss的端口
+		self.link_use = link_use # 链路是否已经使用
+
 
 class Rack(object):
 	"""
@@ -786,6 +795,11 @@ class Rack(object):
 		# 上行wss的输入端口，rack的输入端口，osm的输出端口
 		self._in_port = {str(i): RackPort(self._rack_num, port_type='outport', osm_port=i) 
 		for i in self.out_port_list}
+
+		# 记录转接链路 -- 下行wss转接到上行wss上去
+		# 测试链路转接使用
+		self.down_up_link = {}
+		self.down_up_link_using = {} # 记录使用了的链
 
 		# rack的输入输出端口记录，主要是对wss端口的一个索引
 		# self._in_port = {}
@@ -906,6 +920,8 @@ class Rack(object):
 			if int(i) > self.bvt_num:
 				self.up_wss.in_port[i].physic_port = self.down_wss.out_port[down_wssout_port_list[int(i)-1]]
 				self.down_wss.out_port[down_wssout_port_list[int(i)-1]].physic_port = self.up_wss.in_port[i]
+				self.down_up_link[str(self.down_wss.out_port[down_wssout_port_list[int(i)-1]].port_num)] = DownUpWssLink(
+					self.down_wss.out_port[down_wssout_port_list[int(i)-1]],self.up_wss.in_port[i])
 
 	
 class Topology(object):

@@ -13,6 +13,7 @@ class OpticPath(object):
 	"""
 	光路数据结构
 	两个rack之间相连的物理光路
+	物理映射链路
 	"""
 	def __init__(self):
 
@@ -41,10 +42,13 @@ class OpticPath(object):
 
 		# 光路中带宽 -- 可用的带宽 -- 受bvt的影响
 		self.bandwidth_avaliable = None
-		# 
+		# host
+		self.start_host = None
+		self.end_host = None
 
 		self.next_path = None # OpticalPath 对象 表示它连接的下一条光路
 		self.pre_path = None # OpticalPath 对象 表示它连接的上一条光路，第一条光路除外
+		self.virtual_path = None # 该光学链路对应的虚拟链路
 
 
 class VirtualPath(object):

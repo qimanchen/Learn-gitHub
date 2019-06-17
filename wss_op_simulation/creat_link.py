@@ -134,7 +134,7 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 	rack_link.end_host = end_host
 
 	topology.rack_link['{}_{}_{}_{}'.format(start_rack_num,end_rack_num,
-		osm_start_port.port_num,osm_end_port.port_num)] = rack_link
+		start_wss_in_port.port_num,start_wss_out_port.port_num)] = rack_link
 	return rack_link
 
 def select_slot(start_rack_up_wss, end_rack_down_wss):
@@ -162,12 +162,19 @@ def select_slot(start_rack_up_wss, end_rack_down_wss):
 		index += 4
 	return 'notSlot'
 
-def release_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
+def renew_resources(topo_object, rack_link, virtual_path):
+	"""
+	更新选中链路的资源
+	"""
+
+def release_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num, up_wss_inport):
 	"""
 	当检测到wss中的带宽完全空闲时 -- 可用资源等于初始资源
 	释放到相应的wss中的链路
 	释放掉相应的trans和recv
 	释放掉相应的host的资源
+
+	:param up_wss_inport: 具体光学链路的唯一标识,上行wss的inport端口号
 	"""
 	topology = topo_object
 	# 确认操作rack对象
@@ -186,8 +193,11 @@ def release_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 	osm_start_port = osm_link.start_port # 确认osm输入端口
 	osm_end_port = osm_link.end_port # 确认osm输出端口 -- osmPort object
 
+	# 确认start_rack_up_wss的输出端口 -- WssPort object
+	start_wss_out_port = osm_start_port.physic_port.wss_port
+
 	rack_link = topology.rack_link['{}_{}_{}_{}'.format(start_rack_num,end_rack_num,
-		osm_start_port.port_num,osm_end_port.port_num)]
+		up_wss_inport,start_wss_out_port.port_num)]
 
 	# 确认相关的信息
 	trans = rack_link.trans
@@ -220,7 +230,7 @@ def release_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 
 	# 删除rack_link中的记录
 	del topology.rack_link['{}_{}_{}_{}'.format(start_rack_num,end_rack_num,
-		osm_start_port.port_num,osm_end_port.port_num)]
+		up_wss_inport,start_wss_out_port.port_num)]
 
 	del start_rack.trans_using[str(trans.trans_num)]
 	# recv
@@ -235,3 +245,4 @@ def release_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 
 	# 删除end_rack_down_wss 建路
 	end_rack_down_wss.delete_connect(end_wss_in_port.port_num, end_wss_out_port.port_num)
+

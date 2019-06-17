@@ -13,14 +13,25 @@
 
 # 1. 虚拟网络功能类型参数
 VNF_TYPE_NUM_MAX = 10
-VNF_TYPE_NUM_MAX = 1
+VNF_TYPE_NUM_MIN = 1
 
+# 资源需求随机范围
+# 0.1 - 0.2
+# 0.2 - 0.4
+# 0.4 - 0.6
+# 0 - 1.0
+# 这里选定资源范围为 0.2 - 0.6
 # 2. 虚拟网络功能需求计算资源的范围
-VNF_NEED_MAX_CPU = 150
-VNF_NEED_MIN_CPU = 50
+VNF_NEED_MAX_CPU = 60
+VNF_NEED_MIN_CPU = 20
 
 # 3. 虚拟网络功能链需求资源的参数
+MAX_REQUIRE_BANDWIDTH = 60
+MIN_REQUIRE_BANDWIDTH = 20
 
+# 4. 虚拟链路的长度
+MAX_SC_LENGTH = 5
+MIN_SC_LENGTH = 3
 
 # 物理网络参数
 
