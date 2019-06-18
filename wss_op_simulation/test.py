@@ -11,16 +11,14 @@ from creat_link import creat_rack_osm_wss_link
 from creat_link import release_rack_osm_wss_link
 from creat_service_chain import create_fixed_request
 from creat_service_chain import create_flex_request_seed
+from creat_service_chain import create_vnf_fg_seed
 	
 if __name__ == "__main__":
 
 	n = 5
-	set_seed = 10000
-	while n != 3:
-		n, set_seed, vnflist = create_flex_request_seed(n, set_seed)
-
-		for i in vnflist.values():
-			print(i.virtual_node_type)
+	set_seed = 3
+	n, mid = create_vnf_fg_seed(n, set_seed)
+	print(mid)
 
 
 
