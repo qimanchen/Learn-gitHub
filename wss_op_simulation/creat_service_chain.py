@@ -321,7 +321,7 @@ def create_vnf_fg_seed(n, set_seed):
 
 	random.seed(set_seed)
 
-	# 检测并排序号整vnf forwaring graph
+	# 检测并排序好整vnf forwaring graph
 	for i in range(n):
 		for ii in range(n):
 			if mid[i][ii] == 32676:

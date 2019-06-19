@@ -15,28 +15,28 @@ class FileReadWrite(object):
 	主要是对格式的一个定义
 	"""
 	
-	def __init__(self, file_name, open_type):
+	def __init__(self, file_name, open_type, spec_dict=None):
 		# 打开一个文件，读入方式为覆盖写入
 		# 组建指定目录
-		if 'w' not in open_type:
-			dict = self.join_dict()
+		if 'w' in open_type:
+			dic = self.join_dic(spec_dict)
 		else:
-			dict = ''
-		self.file_name = dict + file_name
+			dic = ''
+		self.file_name = dic + file_name
 		self.open_type = open_type
 		self._file = open(self.file_name, self.open_type)
 	
 	@staticmethod
-	def join_dict(spec_dict=None):
+	def join_dic(spec_dict=None):
 		"""
 		指定数据存储的目录
 		"""
 		main_dict = os.getcwd()
 		if spec_dict is not None:
-			dict = main_dict + "\\data\\" + spec_dict + "\\"
+			dic = main_dict + "\\data\\" + spec_dict + "\\"
 		else:
-			dict = main_dict + "\\data\\"
-		return dict
+			dic = main_dict + "\\data\\"
+		return dic
 		
 	def __del__(self):
 		"""

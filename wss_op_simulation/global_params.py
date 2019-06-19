@@ -41,3 +41,13 @@ MIN_SC_LENGTH = 3
 INIT_BANDWIDTH = 100 # 初始带宽资源
 INIT_COMPUTER_RESOURCE = 100 # 初始计算资源
 
+
+# 事件的四种状态
+# 1. 初始化状态
+START_SIM = 0
+# 2. 生成事件，事件未部署，或开始部署状态
+LIGHTPATH_REQ = 1
+# 3. 事件待释放状态
+LIGHTPATH_REQ_END = 10
+# 仿真整个事件队列队尾 -- 检测整个仿真的末尾
+END_SIM = 100
