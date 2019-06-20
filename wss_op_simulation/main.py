@@ -26,6 +26,12 @@ class Point(object):
 	"""
 	def __init__(self, value=None):
 		self.value = value
+class PP(object):
+	"""
+	主要用于传递整个仿真的测试参数
+	"""
+	pass
+
 
 def init_man_queue():
 	"""
@@ -71,11 +77,21 @@ def main():
 	# notStartWave -- 发射端没有波长资源
 	# notEndWave -- 接收端没有波长资源
 	# notWave -- startRack和endrack没有相应的波长资源
-	fail_num = Point(0) # 失败的请求
-	process_request = Point(1) # 处理的请求的数量
-	no_bandwidth_num = Point(0) # 由于没有带宽资源失败的请求的数量
-	no_slot_num = Point(0) # 由于没有slot而请求失败的数量
-	no_cpu = Point(0) # 由于没有计算资源而请求失败
+
+	# fail_num = Point(0) # 失败的请求
+	# process_request = Point(1) # 处理的请求的数量
+	# no_bandwidth_num = Point(0) # 由于没有带宽资源失败的请求的数量
+	# no_slot_num = Point(0) # 由于没有slot而请求失败的数量
+	# no_cpu = Point(0) # 由于没有计算资源而请求失败
+	# 待测试参数
+
+	pp = PP() # 仿真测试参数类
+	pp.fail_num = 0 # 失败请求数
+	pp.process_request = 1 # 处理的请求数
+	pp.no_bandwidth_num = 0 # 由于没有带宽资源失败的请求数
+	pp.no_slot_num = 0 # 由于没有slot而失败的请求数
+	pp.no_cpu = 0 # 由于没有计算资源而失败的请求数
+	pp.switch_wss = 0 # 通过wss转接而实现映射的请求
 
 	file_name = "data/test.txt"
 	file = open(file_name, 'w')
@@ -89,35 +105,41 @@ def main():
 			all_test += 1
 
 			if (all_test % 10) == 0:
-				blocking = fail_num.value/process_request.value # 整体阻塞率
-				no_bandwidth_num_blocking = no_bandwidth_num.value/process_request.value # 没有波长资源而阻塞
-				no_slot_num_blocking = no_slot_num.value/process_request.value # 没有slot资源而阻塞
-				no_cpu_blocking = no_cpu.value/process_request.value # 没有计算资源而阻塞
+				blocking = pp.fail_num/pp.process_request # 整体阻塞率
+				no_bandwidth_num_blocking = pp.no_bandwidth_num/pp.process_request # 没有波长资源而阻塞
+				no_slot_num_blocking = pp.no_slot_num/pp.process_request # 没有slot资源而阻塞
+				no_cpu_blocking = pp.no_cpu/pp.process_request # 没有计算资源而阻塞
+				switch_wss = pp.switch_wss/pp.process_request # 通过切换wss映射链的比率
 				# 每 10000条请求输出一次结果
 				print("all blocking: ", blocking)
 				print("no bandwidth blocking: ", no_bandwidth_num_blocking)
 				print("no slot blocking: ", no_slot_num_blocking)
 				print('no cpu blocking: ', no_cpu_blocking)
+				print('switch wss request: ', switch_wss)
 				print("*"*50)
 				print()
 				# 将数据读入文件中
 				file.write(str(blocking)+'\t\t'+str(no_bandwidth_num_blocking)+'\t\t'+
-					str(no_slot_num_blocking)+'\t\t' + str(no_cpu_blocking)+'\n')
+					str(no_slot_num_blocking)+'\t\t' + str(no_cpu_blocking)+'\t\t' + str(switch_wss) + '\n')
 
 			if (all_test == 100):
 				# 仿真数量的上限
-				blocking = fail_num.value/process_request.value # 整体阻塞率
-				no_bandwidth_num_blocking = no_bandwidth_num.value/process_request.value # 没有波长资源而阻塞
-				no_slot_num_blocking = no_slot_num.value/process_request.value # 没有slot资源而阻塞
-				no_cpu_blocking = no_cpu.value/process_request.value # 没有计算资源而阻塞
-				# 输出最后一次的结果
+				blocking = pp.fail_num/pp.process_request # 整体阻塞率
+				no_bandwidth_num_blocking = pp.no_bandwidth_num/pp.process_request # 没有波长资源而阻塞
+				no_slot_num_blocking = pp.no_slot_num/pp.process_request # 没有slot资源而阻塞
+				no_cpu_blocking = pp.no_cpu/pp.process_request # 没有计算资源而阻塞
+				switch_wss = pp.switch_wss/pp.process_request # 通过切换wss映射链的比率
+				# 每 10000条请求输出一次结果
 				print("all blocking: ", blocking)
 				print("no bandwidth blocking: ", no_bandwidth_num_blocking)
 				print("no slot blocking: ", no_slot_num_blocking)
 				print('no cpu blocking: ', no_cpu_blocking)
-				# 将最后一次结果读入文件中
+				print('switch wss request: ', switch_wss)
+				print("*"*50)
+				print()
+				# 将数据读入文件中
 				file.write(str(blocking)+'\t\t'+str(no_bandwidth_num_blocking)+'\t\t'+
-					str(no_slot_num_blocking)+'\t\t' + str(no_cpu_blocking)+'\n')
+					str(no_slot_num_blocking)+'\t\t' + str(no_cpu_blocking)+'\t\t'+str(switch_wss) + '\n')
 				break
 		# 开始处理请求
 		event_handler()

@@ -90,7 +90,7 @@ def create_fixed_request(n):
 	return virtual_node_dict
 
 
-def create_fixed_request(n, set_seed):
+def create_fixed_request_seed(n, set_seed):
 	"""
 	生成固定功能链, 伴随着随机数的种子
 	:param n: 链中的结点个数

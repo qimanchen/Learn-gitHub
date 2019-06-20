@@ -624,6 +624,7 @@ class Recv(object):
 		self.recv_port = None # 接收机连接下行wss的端口
 		self.to_rack =None # 接收机接收信号来源的rack
 		self._rack = rack # 接收机所在的rack
+		self.host = None # 接收机连接的host
 
 	@property
 	def recv_num(self):
@@ -645,6 +646,7 @@ class Trans(object):
 		self.trans_use = trans_use # 发射机使用的状态
 		self.trans_port = None # 发射机连接的上行wss的port
 		self.to_rack = None # 发射机发射波长的目标rack
+		self.host = None # 发射机连接的host
 
 	@property
 	def trans_num(self):
@@ -668,7 +670,7 @@ class Host(object):
 		# 主机拥有的初始资源
 		self._computer_resource = INIT_COMPUTER_RESOURCE
 		self.avaliable_resource = self._computer_resource # 主机中的可用资源
-		self.maping_sc = None # 主机中映射的链 - 哈希表
+		self.maping_sc = None # 主机中映射的链, 记录vnode表 {vnf:physical_node(rackNum_hostNum)}
 		self.maping_vnf = None # 主机中映射的VNF - 哈希表{'start_vnf':end_vnf}
 
 	@property

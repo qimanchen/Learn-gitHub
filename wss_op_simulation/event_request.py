@@ -9,6 +9,11 @@
 """
 # 待释放请求
 from global_params import LIGHTPATH_REQ_END
+# 导入请求处理函数
+from algorithm import request_mapping
+# 导入物理网路建路和删路函数
+from creat_link import creat_rack_osm_wss_link
+from creat_link import release_rack_osm_wss_link
 
 
 class PhysicPath(object):
@@ -64,25 +69,42 @@ class RequestEvent(object):
 		self.sub_path = None # 对应的物理路径
 
 
-def event_handler(topology, h, fail_num, process_request, no_banwidth_num, no_slot_num, no_cpu):
+def event_handler(topology, h, pp):
 	"""
-	fail_num = Point(0) # 失败的请求
-	process_request = Point(1) # 处理的请求的数量
-	no_bandwidth_num = Point(0) # 由于没有带宽资源失败的请求的数量
-	no_slot_num = Point(0) # 由于没有slot而请求失败的数量
-	no_cpu = Point(0) # 由于没有计算资源而请求失败
-	处理请求
-	不是新的请求
+	pp = PP() # 仿真测试参数类
+	pp.fail_num = 0 # 失败请求数
+	pp.process_request = 1 # 处理的请求数
+	pp.no_bandwidth_num = 0 # 由于没有带宽资源失败的请求数
+	pp.no_slot_num = 0 # 由于没有slot而失败的请求数
+	pp.no_cpu = 0 # 由于没有计算资源而失败的请求数
+	pp.switch_wss = 0 # 通过wss转接而实现映射的请求
 
 	:param topology: 拓扑对象
 	:param h: 事件对象 event_queue
+	:param pp: 测试参数类实例
 	"""
 	code = h.next.type # 事件类型
 
 	# 当事件为新的事件时，需要进行映射
 	if code == 1:
-		pass
+		pp.process_request += 1
 		# 映射请求
+		sub_path, request_state, loss_type = request_mapping(topology) # 返回对应的物理路径，请求处理状态，请求失败类型
+
+		if request_state:
+			# 请求处理成功
+			pass
+		else:
+			# 请求处理失败
+			pp.fail_num += 1
+			if loss_type == 1:
+				pp.no_cpu +=1
+			elif loss_type == 2:
+				pp.no_slot_num += 1
+			elif loss_type == 3:
+				pp.no_bandwidth_num += 1
+
+
 	elif code == 10:
 		pass
 		# 释放请求

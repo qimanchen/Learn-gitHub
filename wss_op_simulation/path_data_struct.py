@@ -46,6 +46,8 @@ class OpticPath(object):
 		self.start_host = None
 		self.end_host = None
 
+		self.rack_link = None # RackLink object
+
 		self.next_path = None # OpticalPath 对象 表示它连接的下一条光路
 		self.pre_path = None # OpticalPath 对象 表示它连接的上一条光路，第一条光路除外
 		self.virtual_path = None # 该光学链路对应的虚拟链路
