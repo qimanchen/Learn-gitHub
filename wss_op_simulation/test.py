@@ -15,39 +15,22 @@ from creat_service_chain import create_vnf_fg_seed
 from main import init_man_queue
 from main import Point # 引入整个指针参考兑现
 from request_set import create_all_request
+from algorithm import create_max_array
+from algorithm import read_rga_link
+
+from create_request_with_new_model import create_chose_vnf_fg_seed, decide_vnf_forward_graph
+
 	
 if __name__ == "__main__":
 
-	n_point = Point(5)
-	set_seed_point = Point(3)
-	lambda_start = 1/180
-	req_sum = Point(0)
-	seed_point = Point(22)
-	new_request_time_point = Point(0)
-	man_h = init_man_queue()
+	n, set_seed, vnode_dict = create_chose_vnf_fg_seed(5, 3)
+	print(vnode_dict)
 
-	create_all_request(man_h, lambda_start, set_seed_point, seed_point, new_request_time_point, req_sum, n_point)
-	create_all_request(man_h, lambda_start, set_seed_point, seed_point, new_request_time_point, req_sum, n_point)
-	create_all_request(man_h, lambda_start, set_seed_point, seed_point, new_request_time_point, req_sum, n_point)
+	pp = decide_vnf_forward_graph(vnode_dict)
+	print(pp.fi_level, pp.se_level, pp.th_level, pp.fo_level, pp.mid_level )
 
-	print(req_sum.value)
-	print(n_point.value)
-	print(seed_point.value)
-	print(new_request_time_point.value)
-	while man_h:
-		print(man_h.request)
-		print(man_h.create_time)
-		print(man_h.service_time)
-		print(man_h.vnf_num)
-		print(man_h.req_graph_ar)
-		man_h = man_h.next
 	
 
 
 
 
-
-def release_rack_osm_wss_link_resource(topo_object, start_rack, end_rack):
-	"""
-	当释放虚拟链路时,释放相应的物理层的资源
-	"""

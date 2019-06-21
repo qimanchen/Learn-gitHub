@@ -12,8 +12,14 @@
 # 虚拟网络功能链参数
 
 # 1. 虚拟网络功能类型参数
-VNF_TYPE_NUM_MAX = 10
+VNF_TYPE_NUM_MAX = 20
 VNF_TYPE_NUM_MIN = 1
+# 虚拟网络功能的四级关系
+FILEVEL = [1,2,3,4]
+SELEVEL = [5,6,7,8]
+THLEVEL = [9,10,11,12]
+FOLEVEL = [13,14,15,16]
+MIDLEVEL = [17,18,19,20]
 
 # 资源需求随机范围
 # 0.1 - 0.2

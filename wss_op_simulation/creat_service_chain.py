@@ -190,6 +190,8 @@ def create_vnf_fg_seed(n, set_seed):
 	random.seed(set_seed)
 
 	mid = [[None for _ in range(n)] for _ in range(n)]
+	# 关系矩阵
+	# 
 
 	# vnf_fg = mid
 

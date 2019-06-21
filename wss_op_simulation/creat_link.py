@@ -58,7 +58,7 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 	slot_plan = select_slot(start_rack_up_wss, end_rack_down_wss)
 	# 没有相应的波长资源,返回相应的标记信息
 	try:
-		if isinstance(str, slot_plan):
+		if isinstance(slot_plan, str):
 			return slot_plan
 	except:
 		pass
