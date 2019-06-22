@@ -1,0 +1,9 @@
+# 安装命令
+$ sudo pip3 install Django==2.0.6
+
+# 测试django
+$ python3
+>>> import django
+# 显示出版本号
+>>> print(django.get_version())
+2.0.6

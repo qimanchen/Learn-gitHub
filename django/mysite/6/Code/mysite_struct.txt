@@ -1,0 +1,17 @@
+# mysite结构
+# 生成django项目
+$ django-admin startproject mysite  # 最后面那个是项目名称
+外层mysite -- 项目的容器
+mysite/
+	# 可以使用各种方式管理Django项目的命令行工具
+	# 在mysite/目录下输入 python3 manage.py help
+	# 查看它能做什么
+	manage.py
+	
+	# mysite/ 包含项目
+	mysite/
+		__init__.py # 包声明文件
+		setting.py # Django项目的配置文件
+		urls.py	# Django项目的URL声明
+		wsgi.py	# 作为项目的运行在wsgi兼容的web服务器的入口
+		

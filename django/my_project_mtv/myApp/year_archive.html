@@ -1,0 +1,11 @@
+{% block title %}Books for {{ year }}{% endblock %}
+
+{{% block content %}}
+<h1>Articles for {{years}}</h1>
+
+# 试图将函数返回的结果显示在网页上
+{% for book in book_list %}
+	<p>{{ book.name }}</p>
+	<p>Published {{ book.pub_date|date:"F j, Y" }}</p>
+{% endfor %}
+{% end block %}
