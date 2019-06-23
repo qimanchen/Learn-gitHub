@@ -19,7 +19,6 @@ from global_params import MAX_REQUIRE_BANDWIDTH, MIN_REQUIRE_BANDWIDTH
 from global_params import MAX_SC_LENGTH, MIN_SC_LENGTH
 # 引入四种不同级别的vnf
 from global_params import FILEVEL, SELEVEL, THLEVEL, FOLEVEL, MIDLEVEL
-from main import PP
 
 
 class VNode(object):
@@ -47,7 +46,7 @@ def create_chose_vnf_fg_seed(n, set_seed):
 	vnode_type_list = [] # 记录选中的type,防止选到重复的node类型
 
 	for i in range(1, n+1):
-		if i == 0:
+		if i == 1:
 			# 第一个结点不用去重
 			# 第一个节点
 			virtual_node_type = random.randint(VNF_TYPE_NUM_MIN, VNF_TYPE_NUM_MAX)
@@ -73,13 +72,14 @@ def create_chose_vnf_fg_seed(n, set_seed):
 
 	return n, set_seed, virtual_node_dict
 
-def decide_vnf_forward_graph(virtual_node_dict):
+def decide_vnf_forward_graph(virtual_node_dict, pp):
 	"""
 	确定vnf之间的关系，主要是确定vnf之间的逻辑关系
 	:param virtual_node_dict: vnf结点hash表
+	:param pp: 存储节点等级对象
 	:return： vnf之间的关系表
 	"""
-	pp = PP()
+	# pp = PP() # 存储节点等级对象
 	
 	pp.fi_level = []
 	pp.se_level = []
@@ -100,6 +100,6 @@ def decide_vnf_forward_graph(virtual_node_dict):
 			pp.mid_level.append(vnode)
 		else:
 			raise ValueError('不存在的结点类型！')
-	return pp
+	# return pp
 
 

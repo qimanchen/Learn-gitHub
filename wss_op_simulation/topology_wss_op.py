@@ -670,6 +670,7 @@ class Host(object):
 		# 主机拥有的初始资源
 		self._computer_resource = INIT_COMPUTER_RESOURCE
 		self.avaliable_resource = self._computer_resource # 主机中的可用资源
+		# 通过列表来记录对应的映射的链路
 		self.maping_sc = None # 主机中映射的链, 记录vnode表 {vnf:physical_node(rackNum_hostNum)}
 		self.maping_vnf = None # 主机中映射的VNF - 哈希表{'start_vnf':end_vnf}
 

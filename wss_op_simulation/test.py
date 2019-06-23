@@ -17,17 +17,23 @@ from main import Point # 引入整个指针参考兑现
 from request_set import create_all_request
 from algorithm import create_max_array
 from algorithm import read_rga_link
-
 from create_request_with_new_model import create_chose_vnf_fg_seed, decide_vnf_forward_graph
-
+from main import Point
+class PP(object):
+	"""
+	主要用于传递整个仿真的测试参数
+	"""
+	pass
 	
 if __name__ == "__main__":
-
-	n, set_seed, vnode_dict = create_chose_vnf_fg_seed(5, 3)
-	print(vnode_dict)
-
-	pp = decide_vnf_forward_graph(vnode_dict)
-	print(pp.fi_level, pp.se_level, pp.th_level, pp.fo_level, pp.mid_level )
+	
+	topology = Topology()
+	n, set_seed, vnode = create_chose_vnf_fg_seed(5,3)
+	
+	print(create_max_array(topology, vnode, n))
+	print(topology.index_link)
+	
+	
 
 	
 

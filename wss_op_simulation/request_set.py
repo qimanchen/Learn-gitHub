@@ -11,15 +11,24 @@
 3. 释放请求
 """
 # 导入请求数组生成函数
-from creat_service_chain import create_flex_request_seed
+# from creat_service_chain import create_flex_request_seed
+from create_request_with_new_model import create_chose_vnf_fg_seed
 # 导入服务功能关系链生成函数
-from creat_service_chain import create_vnf_fg_seed
+# from creat_service_chain import create_vnf_fg_seed
+from create_request_with_new_model import decide_vnf_forward_graph
 # 导入事件数据结构
 from event_request import RequestEvent
 # 导入泊松分布时间生成函数
 from time_set import negexp
 # 事件类型 -- 新建事件
 from global_params import LIGHTPATH_REQ
+
+
+class PP(object):
+	"""
+	主要用于传递整个仿真的测试参数
+	"""
+	pass
 
 
 def create_all_request(event_queue, lambda_start, set_seed, seed, sum_time, req_sum, n):
@@ -37,6 +46,7 @@ def create_all_request(event_queue, lambda_start, set_seed, seed, sum_time, req_
 
 	:return: None
 	"""
+	r_g_a = PP()
 
 	inter_time = 0 # 请求生存时间
 	service_time = 0 # 请求在系统中的生存时间
@@ -52,9 +62,9 @@ def create_all_request(event_queue, lambda_start, set_seed, seed, sum_time, req_
 	sum_time.value += inter_time
 
 	# 生成请求的各个结点
-	n.value, set_seed.value, v_node = create_flex_request_seed(n.value, set_seed.value)
+	n.value, set_seed.value, v_node = create_chose_vnf_fg_seed(n.value, set_seed.value)
 	# 生成各个结点之间的关系矩阵
-	set_seed.value, r_g_a = create_vnf_fg_seed(n.value, set_seed.value)
+	decide_vnf_forward_graph(v_node, r_g_a)
 
 	# 将请求加入到事件队列中
 	add_request(event_queue, LIGHTPATH_REQ, r_g_a, v_node, sum_time.value, service_time, req_sum.value, n.value)
