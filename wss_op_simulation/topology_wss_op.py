@@ -673,7 +673,11 @@ class Host(object):
 		# 通过列表来记录对应的映射的链路
 		self.maping_sc = None # 主机中映射的链, 记录vnode表 {vnf:physical_node(rackNum_hostNum)}
 		self.maping_vnf = None # 主机中映射的VNF - 哈希表{'start_vnf':end_vnf}
-
+		
+	@property
+	def computer_resource(self):
+		return self._computer_resource
+	
 	@property
 	def host_num(self):
 		return self._host_num
@@ -747,8 +751,8 @@ class RackLink(object):
 		self.recv = None # recv # 接收信号的接收机
 		self.slot_plan = None # 链路中的波长
 
-		self.start_host = None # start rack中的host
-		self.end_host = None # end rack中的host
+		# self.start_host = None # start rack中的host
+		# self.end_host = None # end rack中的host
 
 class DownUpWssLink(object):
 	"""
@@ -786,6 +790,11 @@ class Rack(object):
 		self.host_list = {str(i): Host(i, rack_num) for i in range(1, bvts+1)}
 		self.host_using = {} # 正在使用中的trans
 
+		# host集合列表
+		self._computer_resource = INIT_COMPUTER_RESOURCE * bvts
+		self.avaliable_resource = self._computer_resource
+		self.mapping_sc = None # {req_id:vnodes列表}
+
 		# # 上行输出端口，osm的输入端口
 		self.in_port_list = [i for i in range(degrees*(rack_num-1)+1, degrees*(rack_num)+1)]
 		# 下行输入端口，osm的输出端口
@@ -812,6 +821,10 @@ class Rack(object):
 		self.set_link_bvt() # 设置wss与recv和trans的物理连接
 		self.set_up_down() # 设置上行wss与下行wss的连接
 
+	@property
+	def computer_resource(self):
+		return self._computer_resource
+	
 	def get_avaliable_host(self):
 		"""
 		检测没有使用过的host

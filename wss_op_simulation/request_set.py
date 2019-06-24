@@ -16,12 +16,13 @@ from create_request_with_new_model import create_chose_vnf_fg_seed
 # 导入服务功能关系链生成函数
 # from creat_service_chain import create_vnf_fg_seed
 from create_request_with_new_model import decide_vnf_forward_graph
-# 导入事件数据结构
-from event_request import RequestEvent
+
 # 导入泊松分布时间生成函数
 from time_set import negexp
 # 事件类型 -- 新建事件
 from global_params import LIGHTPATH_REQ
+# 导入事件数据结构
+from global_params import RequestEvent
 
 
 class PP(object):
@@ -84,7 +85,6 @@ def add_request(event_queue, event_type, r_g_a, v_node, sum_time, service_time, 
 
 	:return: None
 	"""
-
 	p = event_queue
 
 	while p.next and p.next.create_time < sum_time:

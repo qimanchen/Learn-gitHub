@@ -28,44 +28,65 @@ class VNodePath(object):
 	映射节点路径类
 	"""
 	
-	def __init__(self, rack_id, vnf_id, next=None):
+	def __init__(self, map_id, rack_id=None, vnf_id=None, next=None):
+		self.id = map_id # 映射的第几个结点
 		self.rack = rack_id # 映射的rack
 		self.vnf = vnf_id  # 映射的vnf
 		self.next = next # 映射的下一个结点
 
 	
+# class ShortPath(object):
+# 	"""
+# 	记录最大带宽矩阵中元素
+# 	"""
+
+# 	def __init__(self, path_id):
+	
+# 		# 链路编号 -- 第几条链路
+# 		self.id = path_id
+# 		# 起始rack
+# 		self.start_rack = None
+# 		# 终止rack
+# 		self.end_rack = None
+# 		# 起始wss端口
+# 		self.wss_trans = None
+# 		# 终止wss端口
+# 		self.wss_recv = None
+# 		# 对应的RackLink对象
+# 		self.rack_link = None
+# 		# 相应的资源
+# 		self.bandwidth = None
+# 		# 记录相应的CPU
+# 		self.cpu = None
+# 		# 最后一个host的cpu
+# 		self.end_cpu = None
+# 		# 记录对应start_host中的链路记录
+# 		self.start_host_vnf_list = None
+# 		# 记录对应end_host中的链路记录--只针对最后一条链路而言
+# 		self.end_host_vnf_list = None
+# 		# 连接的下一端口
+# 		self.next = None
 class ShortPath(object):
 	"""
-	记录最大带宽矩阵中元素
+	记录相应的物理路径
 	"""
-
-	def __init__(self):
+	def __init__(self, path_id):
 	
 		# 链路编号 -- 第几条链路
-		self.id = None
+		self.id = path_id
+		# 路径类型 -- 转接或正常类型
+		self.path_type = None
+		# 映射的vnf
+		self.start_vnf = None
+		self.end_vnf = None
 		# 起始rack
 		self.start_rack = None
 		# 终止rack
 		self.end_rack = None
-		# 起始wss端口
-		self.wss_trans = None
-		# 终止wss端口
-		self.wss_recv = None
-		# 对应的RackLink对象
+		# 对应的物理网络链路
 		self.rack_link = None
-		# 相应的资源
-		self.bandwidth = None
-		# 记录相应的CPU
-		self.cpu = None
-		# 最后一个host的cpu
-		self.end_cpu = None
-		# 记录对应start_host中的链路记录
-		self.start_host_vnf_list = None
-		# 记录对应end_host中的链路记录--只针对最后一条链路而言
-		self.end_host_vnf_list = None
 		# 连接的下一端口
 		self.next = None
-
 
 # 所有仿真通用的
 def create_max_array(topology, vnode, vnf_num):
@@ -86,10 +107,8 @@ def create_max_array(topology, vnode, vnf_num):
 	# 取出recv的数量
 
 	# 当检测到没有实际的物理路径时，建立一条新的链路以支持
-
 	# 对应物理资源
 	# 对应的带宽资源 
-
 	max_mat = [[0 for i in range(vnf_num)] for _ in range(rack_num)]
 
 	# 针对每个rack, rack的编号是从1开始的
@@ -118,7 +137,7 @@ def create_max_array(topology, vnode, vnf_num):
 					count = 0
 					for wss_ports, wss_link in osm_link.wss_link.items():
 						# 找到对应的终结点
-						if rack_links['{}_{}_{}'.format(in_rack, out_rack+1, wss_ports)].end_host.avaliable_resource >= vnode[j].computer_require:
+						if rack_links['{}_{}_{}'.format(in_rack, out_rack+1, wss_ports)].end_rack.avaliable_resource >= vnode[j].computer_require:
 							count += 1 # 标记存在可用的链路
 							# 找到所有的最大的带宽值
 							if wss_link.bandwidth_avaliable > max_bandwidth:
@@ -291,7 +310,7 @@ def get_vnf(r_g_a, fm):
 	return vnf_chosed_list
 
 
-def vnss(topology, vnode, max_mat,fm, check_vnf, on, pre_rack):
+def vnss(r_g_a, topology, vnode, max_mat,fm, check_vnf, on, pre_rack):
 	"""
 	有多个vnf可选时判断vnf之间的顺序
 	:param on: 当前映射顺序
@@ -321,19 +340,19 @@ def vnss(topology, vnode, max_mat,fm, check_vnf, on, pre_rack):
 				# 找到对应vnf的索引位置
 				mid_sum = 0
 				for vnf in next_vnfs:
-					mid_sum += max_mat[rack][vnode_ids.index(vnf)]
+					mid_sum += max_mat[rack-1][vnode_ids.index(vnf)]
 				if mid_max < mid_sum:
 					mid_max = mid_sum
 			mid_sum_max_band[vnf_id] = mid_max
 		
 		#确定顺序
-		max_band = max(mid_sum_max)
+		max_band = max(mid_sum_max_band.values())
 		for vnf in mid_sum_max_band:
 			if mid_sum_max_band[vnf]  ==  max_band:
 				max_vnf.append(vnf)
 		
 		#多个相同的vnf，选择具有最大带宽需求的优先
-		max_band_list = [vnode(i).bandwidth_require for i in max_vnf]
+		max_band_list = [vnode[i].bandwidth_require for i in max_vnf]
 		max_band = max(max_band_list)
 		for i in range(len(max_vnf)):
 			if max_band_list[i] == max_band:
@@ -347,19 +366,19 @@ def vnss(topology, vnode, max_mat,fm, check_vnf, on, pre_rack):
 			for rack in index_links[pre_rack-1]:
 				mid_sum = 0
 				for vnf in next_vnfs:
-					mid_sum += max_mat[rack][vnode_ids.index(vnf)]
+					mid_sum += max_mat[rack-1][vnode_ids.index(vnf)]
 				if mid_max < mid_sum:
 					mid_max = mid_sum
 			mid_sum_max_band[vnf_id] = mid_max
 			
 		#确定顺序
-		max_band = max(mid_sum_max)
+		max_band = max(mid_sum_max_band.values())
 		for vnf in mid_sum_max_band:
 			if mid_sum_max_band[vnf]  ==  max_band:
 				max_vnf.append(vnf)
 		
 		#多个相同的vnf，选择具有最大带宽需求的优先
-		max_band_list = [vnode(i).bandwidth_require for i in max_vnf]
+		max_band_list = [vnode[i].bandwidth_require for i in max_vnf]
 		max_band = max(max_band_list)
 		for i in range(len(max_vnf)):
 			if max_band_list[i] == max_band:
@@ -368,7 +387,7 @@ def vnss(topology, vnode, max_mat,fm, check_vnf, on, pre_rack):
 	return chosed_vnf
 
 
-def enss(topology, vnode, max_mat,fm, vnf_id, on, pre_rack):
+def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 	"""
 	确定某个vnf可以映射的物理结点
 	第一个结点时只是确定第一个rack
@@ -388,14 +407,13 @@ def enss(topology, vnode, max_mat,fm, vnf_id, on, pre_rack):
 	
 	vnode_ids = list(vnode.keys()) # 记录着每个vnf所在的index
 	
-	mid_sum_max_band = [] # 记录多个不同vnf的最大带宽和
+	mid_sum_max_band = {} # 记录多个不同vnf的最大带宽和, rack: max_band
 	
 	max_vnf = [] # 记录最大的vnfs
 	# 选中的结点
 	chosed_node = []
 	# 确认可操作vnf
 	check_vnf = get_vnf(r_g_a,fm.value.values())
-	pre_vnf = fm.value[on]
 	
 	blocking_type = None
 	
@@ -409,39 +427,41 @@ def enss(topology, vnode, max_mat,fm, vnf_id, on, pre_rack):
 			# 先找出具有最大带宽的rack
 			for vnf in next_vnfs:
 				mid_sum += max_mat[rack][vnode_ids.index(vnf)]
-			mid_sum_max_band.append(mid_sum)
+			mid_sum_max_band[rack+1] = mid_sum
 		# 得到最大的带宽
-		max_band = max(mid_sum_max_band)
+		max_band = max(mid_sum_max_band.values())
 		# 取得有最大带宽的rack的列表
-		max_band_rack = [i+1 for i in range(rack_num) if mid_sum_max_band[i] == max_band]
+		max_band_rack = [i for i in mid_sum_max_band if mid_sum_max_band[i] == max_band]
 		# 筛选出满足计算资源的rack
 		for rack_id in max_band_rack:
-			for host in racks[str(rack_id)].host_using.values:
-				if host.avaliable_resource >= vnode[vnf_id].computer_require:
-					chosed_node.append(rack_id)
-					break
+			if racks[str(rack_id)].avaliable_resource >= vnode[vnf_id].computer_require:
+				chosed_node.append(rack_id)
 	else:
+		rack_mapped_list = list(rack_mapped.value.values())
+		pre_vnf = fm.value[on-1]
 		# 不是第一个结点需要考虑链路的选择
 		next_vnfs = get_next_vnf(r_g_a, vnf_id, check_vnf)
 		mid_rack_sum_band = []
 		mid_max = 0
 		for rack in index_links[pre_rack-1]:
 			mid_sum = 0
-			# 先找出具有最大带宽的rack
-			for vnf in next_vnfs:
-				mid_sum += max_mat[rack][vnode_ids.index(vnf)]
-			mid_sum_max_band.append(mid_sum)
+			# 防止同一条链产生回路
+			if rack not in rack_mapped_list:
+				# 先找出具有最大带宽的rack
+				for vnf in next_vnfs:
+					mid_sum += max_mat[rack-1][vnode_ids.index(vnf)]
+				mid_sum_max_band[rack] = mid_sum
 		# 得到最大的带宽
-		max_band = max(mid_sum_max_band)
+		max_band = max(mid_sum_max_band.values())
 		# 取得有最大带宽的rack的列表
-		max_band_rack = [i+1 for i in range(rack_num) if mid_sum_max_band[i] == max_band]
+		max_band_rack = [i for i in mid_sum_max_band if mid_sum_max_band[i] == max_band]
 		
 		for rack_id in max_band_rack:
 			mid_link = osm_link[str(pre_rack)][rack_id-1]
 			for wss_link in mid_link.wss_link:
 				mid_rack_link = rack_links["{}_{}_{}".format(pre_rack, rack_id, wss_link)]
-				if mid_rack_link.start_host.avaliable_resource >= vnode[pre_vnf].computer_require:
-					if mid_rack_link.end_host.avaliable_resource >= vnode[vnf_id].computer_require:
+				if mid_rack_link.start_rack.avaliable_resource >= vnode[pre_vnf].computer_require:
+					if mid_rack_link.end_rack.avaliable_resource >= vnode[vnf_id].computer_require:
 						if mid_rack_link.start_wss_link.bandwidth_avaliable >= vnode[pre_vnf].bandwidth_require:
 							chosed_node.append(mid_rack_link)
 						else:
@@ -449,13 +469,13 @@ def enss(topology, vnode, max_mat,fm, vnf_id, on, pre_rack):
 					else:
 						blocking_type = "noEndHost"
 				else:
-					blocking_type = "noStart_Host"
+					blocking_type = "noStartHost"
 	if not chosed_node:
 		return blocking_type
 
 	return chosed_node
-			
 	
+
 def get_next_vnf(r_g_a, vnf_id, check_vnf):
 	"""
 	得到某个vnf的下面可能相连的vnf
@@ -500,7 +520,6 @@ def request_mapping(topology, event):
 	"""
 	请求处理模块
 	"""
-	sub_path = None # 映射处理后的物理链路
 	request_state = None # 请求的处理状态，True or False
 	loss_type = None # 请求映射失败的原因
 
@@ -510,59 +529,167 @@ def request_mapping(topology, event):
 	
 	fm = PP() # 存储整个已经映射的vnf -- 字典
 	fm.value = {} # {映射顺序：vnf_id}
+
+	rack_mapped = PP() # 记录已经操作的rack
+	rack_mapped.value = {}
 	
 	# 每次映射可以被选择的vnf列表
 	chose_vnf_list = [None  for _ in range(vnf_num)]
 	# 记录每次选中的vnf列表
-	chosed_vnf_list = []
+	chosed_vnf_list = [None for _ in range(vnf_num)]
 	
 	# 每次选中的物理结点
 	chose_node_list = [None for _ in range(vnf_num)]
 	# 第一个结点返回的rack列表
 	# 其他结点返回的RackLink对象
 	# 每次操作的对象
-	chosed_node_list = []
+	chosed_node_list = [None for _ in range(vnf_num)]
 
 	max_mat = create_max_array(topology, vnode, vnf_num) # 最大带宽矩阵
 	
-	sub_node_path = VNodePath() # 映射结点路径
-	sub_path = ShortPath() # 映射路径
-	blocking_type = 0
-	
-	for i in range(vnf_num):
+	sub_node_path = VNodePath(-1) # 映射结点路径
+	sub_path = ShortPath(-1) # 映射路径
+	blocking_type = None # 阻塞
+	i = 0
+	while i < vnf_num:
 		# 开始寻找对应的链路
 		backtrack_top = 1 # 用于回溯的参数
 		
 		# 第一个结点,不用映射物理路径
 		if i == 0:
-			# 找出需要判断关系的vnf
-			check_vnf = get_vnf(r_g_a,fm.value.values())
-			# 判断是否先后顺序
-			# 当整个没有相应的选择时,并且选中vnf的个数多于一个时
-			if not chose_vnf_list[i] and len(check_vnf) > 1:
-				chose_vnf_list[i] = vnss(topology, vnode, max_mat,fm, check_vnf, i, None)
-				chosed_vnf_list[i] = copy.deepcopy(chose_vnf_list[i])
-			elif not chose_vnf_list[i]:
-				chose_vnf_list[i] = check_vnf
-				chosed_vnf_list[i] = copy.deepcopy(chose_vnf_list[i])
-			# 选择相应的物理节点
-			for vnf in chosed_vnf_list[i]:
-				chose_node_list[i] = enss(topology, vnode, max_mat, fm, vnf,i,None)
-				# 确定相应的物理链路-- 加入到链路列表中
+			# 判断不是回溯步骤
+			if not chose_vnf_list[i]:
+				# 找出需要判断关系的vnf
+				check_vnf = get_vnf(r_g_a,fm.value.values())
+				# 判断是否先后顺序
+				# 当整个没有相应的选择时,并且选中vnf的个数多于一个时
+				if not chose_vnf_list[i] and len(check_vnf) > 1:
+					chose_vnf_list[i] = vnss(r_g_a, topology, vnode, max_mat,fm, check_vnf, i, None)
+					chosed_vnf_list[i] = copy.deepcopy(chose_vnf_list[i])
+				elif not chose_vnf_list[i]:
+					chose_vnf_list[i] = check_vnf
+					chosed_vnf_list[i] = copy.deepcopy(chose_vnf_list[i])
+			# 当检测到选择的结点列表不为空时
+			if not chosed_node_list[i]:
+				# 选择相应的物理节点
+				# 当检测到没有其他可选vnf时
+				if not chosed_vnf_list[i]:
+					return blocking_type, None
+				for vnf in chosed_vnf_list[i]:
+					# 清除之前映射的fm
+					try:
+						del fm.value[i]
+					except:
+						pass
+					try:
+						del rack_mapped.value[i]
+					except:
+						pass
+					chose_node_list[i] = enss(r_g_a, topology, vnode, max_mat, fm, vnf,i,None, None)
+					# 确定相应的物理链路-- 加入到链路列表中
+					if isinstance(chose_node_list[i], str):
+						blocking_type = chose_node_list[i]
+						continue
+					chosed_node_list[i] = copy.deepcopy(chose_node_list[i])
+					fm.value[i] = chosed_vnf_list[i].pop(0)
+					break
+				# 当找不到对应的物理结点时
 				if isinstance(chose_node_list[i], str):
-					blocking_type = chose_node_list[i]
-					continue
-				csub_node_path = sub_node_path
-				chose_rack = chose_node_list[i].pop()
-				vnf = chosed_vnf_list.pop()
-				csub_node_path.next = VNodePath(chose_rack, vnf)
+					return blocking_type, None, None
+			# 清除之前映射的路径
+			sub_path.next = None
+			csub_node_path = sub_node_path
+			while csub_node_path.next and csub_node_path.id < i:
+				csub_node_path = csub_node_path.next
+			csub_node_path.next = None
+			# 建立相应的物理路径
+			csub_node_path = sub_node_path
+			chose_rack = chosed_node_list[i].pop(0)
+			vnf = fm.value[i]
+			csub_node_path.next = VNodePath(i, chose_rack, vnf)
+			rack_mapped.value[i] = chose_rack
+			i += 1
+			
 		else:
 			# 不是第一个结点
-		
+			# 得到前一个物理结点
+			csub_node_path = sub_node_path
+			while csub_node_path.next:
+				csub_node_path = csub_node_path.next
+			pre_rack = csub_node_path.rack
+
+			# 没有进行初次判断时
+			if not chose_vnf_list[i]:
+				# 判断是否先后顺序
+				check_vnf = get_vnf(r_g_a,fm.value.values())
+				# 当整个没有相应的选择时,并且选中vnf的个数多于一个时
+				if not chose_vnf_list[i] and len(check_vnf) > 1:
+					chose_vnf_list[i] = vnss(r_g_a, topology, vnode, max_mat,fm, check_vnf, i, pre_rack)
+					chosed_vnf_list[i] = copy.deepcopy(chose_vnf_list[i])
+				elif not chose_vnf_list[i]:
+					chose_vnf_list[i] = check_vnf
+					chosed_vnf_list[i] = copy.deepcopy(chose_vnf_list[i])
+			# 当检测到选择的结点列表不为空时
+			if not chosed_node_list[i]:
+				# 选择相应的物理节点
+				# 当检测到没有其他可选vnf时
+				if not chosed_vnf_list[i]:
+					chose_vnf_list[i] = None
+					i -= 1
+					continue
+				# 选择相应的物理节点
+				for vnf in chosed_vnf_list[i]:
+					# 清除之前的fm
+					try:
+						del fm.value[i]
+					except:
+						pass
+					try:
+						del rack_mapped.value[i]
+					except:
+						pass
+					chose_node_list[i] = enss(r_g_a, topology, vnode, max_mat, fm, vnf,i,pre_rack, rack_mapped)
+					# 确定相应的物理链路-- 加入到链路列表中
+					if isinstance(chose_node_list[i], str):
+						blocking_type = chose_node_list[i]
+						continue
+					chosed_node_list[i] = copy.deepcopy(chose_node_list[i])
+					fm.value[i] = chosed_vnf_list[i].pop(0)
+					break
+				if isinstance(chose_node_list[i], str):
+					chose_vnf_list[i] = None
+					i -= 1
+					continue
+			# 清除之前映射的结点
+			csub_path = sub_path
+			while csub_path.next and csub_path.id < i:
+				csub_path = csub_path.next
+			csub_path.next = None
+			csub_node_path = sub_node_path
+			while csub_node_path.next and csub_node_path.id < i:
+				csub_node_path = csub_node_path.next
+			csub_node_path.next = None
+
+			# 处理当前映射
+			csub_node_path = sub_node_path
+			chose_rack = chosed_node_list[i].pop(0)
+			vnf = fm.value[i]
+			csub_node_path.next = VNodePath(i, chose_rack.end_rack.rack_num, vnf)
+			rack_mapped.value[i] = chose_rack.end_rack.rack_num
+
+			csub_path = sub_path
+			while csub_path.next:
+				csub_path = csub_path.next
+			mid_path = ShortPath(i)
+			mid_path.rack_link = chose_rack
+			mid_path.start_vnf = fm.value[i-1]
+			mid_path.end_vnf = fm.value[i]
+			csub_path.next = mid_path
+			i += 1
+
 		# 其他节点
 		# 如果映射失败，返回到上一层检查是否有其他可选节点
 		# 如果所有的选择都进行到底了，则返回相应的映射失败的方案
 		# 如果整个映射完成，则返回对应的sub_path
 
-
-	return sub_path, request_state, loss_type
+	return None, sub_path, sub_node_path

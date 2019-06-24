@@ -37,6 +37,27 @@ if __name__ == "__main__":
 
 	
 
+class ShortPath(object):
+	"""
+	记录最大带宽矩阵中元素
+	"""
 
+	def __init__(self, path_id):
+	
+		# 链路编号 -- 第几条链路
+		self.id = path_id
+		# 路径类型 -- 转接或正常类型
+		self.path_type = None
+		# 映射的vnf
+		self.start_vnf = None
+		self.end_vnf = None
+		# 起始rack
+		self.start_rack = None
+		# 终止rack
+		self.end_rack = None
+		# 对应的物理路径
+		self.rack_link = None
+		# 连接的下一端口
+		self.next = None
 
 

@@ -55,7 +55,7 @@ def main():
 	# seed用于生成请求
 	set_seed_point = Point(3)
 	# erlang
-	lambda_start = 1/180
+	lambda_start = 1/300
 	# 请求的数量
 	req_sum = Point(0)
 	# seed用于泊松到达控制
@@ -67,7 +67,7 @@ def main():
 
 	# 生成请求，并加入到整个事件队列中
 	create_all_request(man_h, lambda_start, set_seed_point, seed_point, new_request_time_point, req_sum, n_point)
-	all_test = 1 # 整体测试的数量
+	all_test = 0 # 整体测试的数量
 
 	# 测试参数
 	# notRecv -- 没有接收机
@@ -87,7 +87,7 @@ def main():
 
 	pp = PP() # 仿真测试参数类
 	pp.fail_num = 0 # 失败请求数
-	pp.process_request = 1 # 处理的请求数
+	pp.process_request = 0 # 处理的请求数
 	pp.no_bandwidth_num = 0 # 由于没有带宽资源失败的请求数
 	pp.no_slot_num = 0 # 由于没有slot而失败的请求数
 	pp.no_cpu = 0 # 由于没有计算资源而失败的请求数
@@ -103,7 +103,7 @@ def main():
 			create_all_request(man_h, lambda_start, set_seed_point, seed_point, new_request_time_point, req_sum, n_point)
 
 			all_test += 1
-
+			
 			if (all_test % 10) == 0:
 				blocking = pp.fail_num/pp.process_request # 整体阻塞率
 				no_bandwidth_num_blocking = pp.no_bandwidth_num/pp.process_request # 没有波长资源而阻塞
@@ -111,6 +111,9 @@ def main():
 				no_cpu_blocking = pp.no_cpu/pp.process_request # 没有计算资源而阻塞
 				switch_wss = pp.switch_wss/pp.process_request # 通过切换wss映射链的比率
 				# 每 10000条请求输出一次结果
+				print(pp.fail_num)
+				print(all_test)
+				print(pp.no_bandwidth_num)
 				print("all blocking: ", blocking)
 				print("no bandwidth blocking: ", no_bandwidth_num_blocking)
 				print("no slot blocking: ", no_slot_num_blocking)
@@ -142,7 +145,7 @@ def main():
 					str(no_slot_num_blocking)+'\t\t' + str(no_cpu_blocking)+'\t\t'+str(switch_wss) + '\n')
 				break
 		# 开始处理请求
-		event_handler()
+		event_handler(topology, man_h, pp)
 
 	file.close()
 	print('*'*50, "测试完成", "*"*50)

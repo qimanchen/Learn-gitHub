@@ -9,6 +9,8 @@
 """
 # 确认建立的新路
 from topology_wss_op import RackLink
+from global_params import INIT_BANDWIDTH
+from global_params import INIT_COMPUTER_RESOURCE
 
 
 def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
@@ -62,13 +64,13 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 			return slot_plan
 	except:
 		pass
-	# 检测是否有相应的host可用
-	start_host = start_rack.get_avaliable_host()
-	if not start_host:
-		return 'notStartHost'
-	end_host = end_rack.get_avaliable_host()
-	if not end_host:
-		return 'notEndHost'
+	# # 检测是否有相应的host可用
+	# start_host = start_rack.get_avaliable_host()
+	# if not start_host:
+	# 	return 'notStartHost'
+	# end_host = end_rack.get_avaliable_host()
+	# if not end_host:
+	# 	return 'notEndHost'
 
 	# 进行相应的设置
 	# 确认相应的设备使用
@@ -76,10 +78,10 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 	start_rack.trans_using[str(trans.trans_num)] = trans
 	# recv
 	end_rack.recv_using[str(recv.recv_num)] = recv
-	# start_host
-	start_rack.host_using[str(start_host.host_num)] = start_host
-	# end_host
-	end_rack.host_using[str(end_host.host_num)] = end_host
+	# # start_host
+	# start_rack.host_using[str(start_host.host_num)] = start_host
+	# # end_host
+	# end_rack.host_using[str(end_host.host_num)] = end_host
 
 	# 通过rack的连接来确认
 	# 确定相应的osm链
@@ -127,11 +129,9 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 
 	rack_link.trans = trans
 	rack_link.recv = recv
-
 	rack_link.slot_plan = slot_plan
-
-	rack_link.start_host = start_host
-	rack_link.end_host = end_host
+	# rack_link.start_host = start_host
+	# rack_link.end_host = end_host
 
 	topology.rack_link['{}_{}_{}_{}'.format(start_rack_num,end_rack_num,
 		start_wss_in_port.port_num,start_wss_out_port.port_num)] = rack_link
@@ -162,10 +162,70 @@ def select_slot(start_rack_up_wss, end_rack_down_wss):
 		index += 4
 	return 'notSlot'
 
-def renew_resources(topo_object, rack_link, virtual_path):
+def renew_resources(sub_path, vnode):
 	"""
 	更新选中链路的资源
+	:param sub_path: 整个映射链路
 	"""
+	sub_path = sub_path.next # 取得第一条链路
+
+	csub_path = sub_path
+	while csub_path:
+		mid_rack_link = csub_path.rack_link # 对应的物理链路
+		start_vnf = csub_path.start_vnf
+		if not csub_path.next:
+			# 检测是否是路径的结尾
+			end_vnf = csub_path.end_vnf
+			# 更新物理资源
+			mid_rack_link.end_rack.avaliable_resource -= vnode[end_vnf].computer_require
+			mid_rack_link.start_rack.avaliable_resource -= vnode[start_vnf].computer_require
+			# 更新带宽资源
+			mid_rack_link.start_wss_link.bandwidth_avaliable -= vnode[start_vnf].bandwidth_require
+		else:
+			# 更新物理资源
+			mid_rack_link.start_rack.avaliable_resource -= vnode[start_vnf].computer_require
+			# 更新带宽资源
+			mid_rack_link.start_wss_link.bandwidth_avaliable -= vnode[start_vnf].bandwidth_require
+		csub_path = csub_path.next
+
+def release_resources(sub_path, vnode, topology):
+	"""
+	释放物理网络资源
+	"""
+	sub_path = sub_path.next # 取得第一条链路
+
+	csub_path = sub_path
+	while csub_path:
+		mid_rack_link = csub_path.rack_link # 对应的物理链路
+		start_vnf = csub_path.start_vnf
+		if not csub_path.next:
+			# 检测是否是路径的结尾
+			end_vnf = csub_path.end_vnf
+			# 更新物理资源
+			mid_rack_link.start_rack.avaliable_resource += vnode[start_vnf].computer_require
+			# 尾结点
+			mid_rack_link.end_rack.avaliable_resource += vnode[end_vnf].computer_require
+			# 更新带宽资源
+			mid_rack_link.start_wss_link.bandwidth_avaliable += vnode[start_vnf].bandwidth_require
+			
+		else:
+			# 更新物理资源
+			mid_rack_link.start_rack.avaliable_resource += vnode[start_vnf].computer_require
+			# 更新带宽资源
+			mid_rack_link.start_wss_link.bandwidth_avaliable += vnode[start_vnf].bandwidth_require
+		if mid_rack_link.start_rack.avaliable_resource > mid_rack_link.start_rack.computer_resource:
+			raise ValueError
+		if mid_rack_link.start_wss_link.bandwidth_avaliable > mid_rack_link.start_wss_link.bandwidth:
+			raise ValueError
+		csub_path = csub_path.next
+
+	csub_path = sub_path
+	while csub_path:
+		mid_rack_link = csub_path.rack_link
+		if mid_rack_link.start_wss_link.bandwidth_avaliable == mid_rack_link.start_wss_link.bandwidth and mid_rack_link.start_rack.avaliable_resource == mid_rack_link.start_rack.computer_resource and mid_rack_link.end_rack.avaliable_resource == mid_rack_link.end_rack.computer_resource:
+			# release_rack_osm_wss_link(topology, mid_rack_link.start_rack.rack_num,mid_rack_link.end_rack.rack_num, mid_rack_link.start_wss_link.in_port.port_num)
+			pass
+		csub_path = csub_path.next
 
 def release_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num, up_wss_inport):
 	"""
@@ -202,8 +262,8 @@ def release_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num, up_wss_
 	# 确认相关的信息
 	trans = rack_link.trans
 	recv = rack_link.recv
-	start_host = rack_link.start_host
-	end_host = rack_link.end_host
+	# start_host = rack_link.start_host
+	# end_host = rack_link.end_host
 	
 	# 确认start_rack_up_wss的输出端口 -- WssPort object
 	start_wss_out_port = osm_start_port.physic_port.wss_port
@@ -235,10 +295,10 @@ def release_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num, up_wss_
 	del start_rack.trans_using[str(trans.trans_num)]
 	# recv
 	del end_rack.recv_using[str(recv.recv_num)]
-	# start_host
-	del start_rack.host_using[str(start_host.host_num)]
-	# end_host
-	del end_rack.host_using[str(end_host.host_num)]
+	# # start_host
+	# del start_rack.host_using[str(start_host.host_num)]
+	# # end_host
+	# del end_rack.host_using[str(end_host.host_num)]
 
 	# start_rack_up_wss 建路
 	start_rack_up_wss.delete_connect(start_wss_in_port.port_num, start_wss_out_port.port_num)
