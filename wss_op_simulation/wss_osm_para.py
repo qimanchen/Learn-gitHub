@@ -8,6 +8,7 @@ osm大小
 degree
 bvt数量
 rack数量
+仿真参数
 """
 """
 两种参考参数：
@@ -24,18 +25,17 @@ M=20, S=48
 分别对应 one-, two-, three-hop
 """
 
-
 # 上层的连接度
 # 参考范围 4 to 8
-DEGREE = 2
+DEGREE = 8
 
 # 每一台rack的收发机的数量
 # 参考范围 16 to 48
-BVTNUM = 4
+BVTNUM = 48
 
 # 系统中rack的数量
 # 参考范围32 to 96
-RACKNUM = 5
+RACKNUM = 96
 
 # Wss的大小
 # 上行端口数
@@ -45,4 +45,4 @@ DOWNWSS = DEGREE + BVTNUM
 # 光开关的大小
 OSMSIZE = DEGREE * RACKNUM
 # wss中slot的数量
-WSSSLOT = 48
+WSSSLOT = 128

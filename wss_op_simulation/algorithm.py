@@ -473,7 +473,24 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 								# chosed_node 记录对应链的标识和相应的链对象
 								chosed_node.append((wss_link, mid_rack_link))
 							else:
-								blocking_type = "noBvt"
+								# 检测实际阻塞原因
+								# 检测slot是否还有剩余
+								# start_rack
+								start_up_wss = racks[str(mid_rack_link.start_rack.rack_num)].up_wss
+								end_down_wss = racks[str(mid_rack_link.end_rack.rack_num)].down_wss
+								start_rack = racks[str(mid_rack_link.start_rack.rack_num)]
+								# 检测是否有bvt剩余
+								# start_rack
+								if start_rack.trans_list.keys() == start_rack.trans_using.keys():
+									blocking_type = "noTrans"
+								elif start_up_wss.slot_plan == start_up_wss.slot_plan_use:
+									blocking_type = "noStartSlot"
+								# end_rack
+								elif end_down_wss.slot_plan == end_down_wss.slot_plan_use:
+									blocking_type = "noEndSlot"
+								else:
+									blocking_type = "other"
+								# blocking_type = "noBvt"
 						else:
 							blocking_type = "noEndHost"
 					else:

@@ -89,7 +89,18 @@ def event_handler(topology, h, pp):
 			pp.fail_num += 1
 			if blocking_type == 'noEndHost' or blocking_type == "noStartHost":
 				pp.no_cpu +=1
-			elif blocking_type == 'noBvt':
+			elif blocking_type == 'noTrans':
+				pp.no_bandwidth_num += 1
+				pp.no_trans += 1
+			elif blocking_type == "noStartSlot":
+				pp.no_bandwidth_num += 1
+				pp.no_slot_num += 1
+				pp.no_start_slot += 1
+			elif blocking_type == "noEndSlot":
+				pp.no_bandwidth_num += 1
+				pp.no_slot_num += 1
+				pp.no_end_slot += 1
+			elif blocking_type == "other":
 				pp.no_bandwidth_num += 1
 
 		# 更新请求状态
