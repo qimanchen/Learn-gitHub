@@ -19,21 +19,30 @@ from algorithm import create_max_array
 from algorithm import read_rga_link
 from create_request_with_new_model import create_chose_vnf_fg_seed, decide_vnf_forward_graph
 from main import Point
+from time_set import negexp
+
 class PP(object):
 	"""
 	主要用于传递整个仿真的测试参数
 	"""
 	pass
+
+class Test(object):
+	
+	def __init__(self):
+		self.value = 10
+
+def test_test(a):
+	d = a
+	d.value += 10
+	return d
 	
 if __name__ == "__main__":
 	
-	topology = Topology()
-	n, set_seed, vnode = create_chose_vnf_fg_seed(5,3)
-	
-	print(create_max_array(topology, vnode, n))
-	print(topology.index_link)
-	
-	
+	a = Test()
+	c = a
+	c.value += 10
+	print(test_test(c).value)
 
 	
 

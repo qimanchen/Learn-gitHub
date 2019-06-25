@@ -114,7 +114,7 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 	if not osm_link.wss_link:
 		osm_link.wss_link = {}
 	# 记录相应的链路方便带宽查询
-	osm_link.wss_link['{}_{}'.format(start_wss_in_port.port_num,
+	osm_link.wss_link['{}_{}_{}_{}'.format(start_rack_num, end_rack_num, start_wss_in_port.port_num,
 		start_wss_out_port.port_num)] = start_rack_up_wss.optical_link[str(start_wss_in_port.port_num)]
 
 	# 记录该条物理链路的完整信息
@@ -162,68 +162,89 @@ def select_slot(start_rack_up_wss, end_rack_down_wss):
 		index += 4
 	return 'notSlot'
 
-def renew_resources(sub_path, vnode):
+def renew_resources(topology, sub_path, vnode):
 	"""
 	更新选中链路的资源
 	:param sub_path: 整个映射链路
 	"""
+	racks = topology.racks # 拓扑文件中的
+	rack_links = topology.rack_link
 	sub_path = sub_path.next # 取得第一条链路
 
 	csub_path = sub_path
 	while csub_path:
 		mid_rack_link = csub_path.rack_link # 对应的物理链路
 		start_vnf = csub_path.start_vnf
+		start_rack_num = mid_rack_link[1].start_rack.rack_num
+		wss_link_id = mid_rack_link[0]
 		if not csub_path.next:
 			# 检测是否是路径的结尾
 			end_vnf = csub_path.end_vnf
+			end_rack_num = mid_rack_link[1].end_rack.rack_num
+			
 			# 更新物理资源
-			mid_rack_link.end_rack.avaliable_resource -= vnode[end_vnf].computer_require
-			mid_rack_link.start_rack.avaliable_resource -= vnode[start_vnf].computer_require
+			racks[str(start_rack_num)].avaliable_resource -= vnode[start_vnf].computer_require
+			racks[str(end_rack_num)].avaliable_resource -= vnode[end_vnf].computer_require
+			# mid_rack_link.end_rack.avaliable_resource -= vnode[end_vnf].computer_require
+			# mid_rack_link.start_rack.avaliable_resource -= vnode[start_vnf].computer_require
 			# 更新带宽资源
-			mid_rack_link.start_wss_link.bandwidth_avaliable -= vnode[start_vnf].bandwidth_require
+			rack_links[wss_link_id].start_wss_link.bandwidth_avaliable -= vnode[start_vnf].bandwidth_require
 		else:
 			# 更新物理资源
-			mid_rack_link.start_rack.avaliable_resource -= vnode[start_vnf].computer_require
+			racks[str(start_rack_num)].avaliable_resource -= vnode[start_vnf].computer_require
+			# mid_rack_link.start_rack.avaliable_resource -= vnode[start_vnf].computer_require
 			# 更新带宽资源
-			mid_rack_link.start_wss_link.bandwidth_avaliable -= vnode[start_vnf].bandwidth_require
+			rack_links[wss_link_id].start_wss_link.bandwidth_avaliable -= vnode[start_vnf].bandwidth_require
 		csub_path = csub_path.next
 
 def release_resources(sub_path, vnode, topology):
 	"""
 	释放物理网络资源
 	"""
+	# 当释放映射失败的链时
+	if not sub_path:
+		return
+	racks = topology.racks # 拓扑文件中的
+	rack_links = topology.rack_link
 	sub_path = sub_path.next # 取得第一条链路
 
 	csub_path = sub_path
 	while csub_path:
 		mid_rack_link = csub_path.rack_link # 对应的物理链路
 		start_vnf = csub_path.start_vnf
+		start_rack_num = mid_rack_link[1].start_rack.rack_num
+		wss_link_id = mid_rack_link[0]
 		if not csub_path.next:
 			# 检测是否是路径的结尾
 			end_vnf = csub_path.end_vnf
+			end_rack_num = mid_rack_link[1].end_rack.rack_num
 			# 更新物理资源
-			mid_rack_link.start_rack.avaliable_resource += vnode[start_vnf].computer_require
+			racks[str(start_rack_num)].avaliable_resource += vnode[start_vnf].computer_require
+			# mid_rack_link.start_rack.avaliable_resource += vnode[start_vnf].computer_require
 			# 尾结点
-			mid_rack_link.end_rack.avaliable_resource += vnode[end_vnf].computer_require
+			racks[str(end_rack_num)].avaliable_resource += vnode[end_vnf].computer_require
+			# mid_rack_link.end_rack.avaliable_resource += vnode[end_vnf].computer_require
 			# 更新带宽资源
-			mid_rack_link.start_wss_link.bandwidth_avaliable += vnode[start_vnf].bandwidth_require
+			rack_links[wss_link_id].start_wss_link.bandwidth_avaliable += vnode[start_vnf].bandwidth_require
+			# mid_rack_link.start_wss_link.bandwidth_avaliable += vnode[start_vnf].bandwidth_require
 			
 		else:
 			# 更新物理资源
-			mid_rack_link.start_rack.avaliable_resource += vnode[start_vnf].computer_require
+			racks[str(start_rack_num)].avaliable_resource += vnode[start_vnf].computer_require
+			# mid_rack_link.start_rack.avaliable_resource += vnode[start_vnf].computer_require
 			# 更新带宽资源
-			mid_rack_link.start_wss_link.bandwidth_avaliable += vnode[start_vnf].bandwidth_require
-		if mid_rack_link.start_rack.avaliable_resource > mid_rack_link.start_rack.computer_resource:
-			raise ValueError
-		if mid_rack_link.start_wss_link.bandwidth_avaliable > mid_rack_link.start_wss_link.bandwidth:
-			raise ValueError
+			rack_links[wss_link_id].start_wss_link.bandwidth_avaliable += vnode[start_vnf].bandwidth_require
+			# mid_rack_link.start_wss_link.bandwidth_avaliable += vnode[start_vnf].bandwidth_require
 		csub_path = csub_path.next
 
 	csub_path = sub_path
 	while csub_path:
 		mid_rack_link = csub_path.rack_link
-		if mid_rack_link.start_wss_link.bandwidth_avaliable == mid_rack_link.start_wss_link.bandwidth and mid_rack_link.start_rack.avaliable_resource == mid_rack_link.start_rack.computer_resource and mid_rack_link.end_rack.avaliable_resource == mid_rack_link.end_rack.computer_resource:
-			# release_rack_osm_wss_link(topology, mid_rack_link.start_rack.rack_num,mid_rack_link.end_rack.rack_num, mid_rack_link.start_wss_link.in_port.port_num)
+		start_rack_num = mid_rack_link[1].start_rack.rack_num
+		end_rack_num = mid_rack_link[1].end_rack.rack_num
+		wss_link_id = mid_rack_link[0]
+		if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable == rack_links[wss_link_id].start_wss_link.bandwidth and racks[str(start_rack_num)].avaliable_resource == racks[str(start_rack_num)].computer_resource and racks[str(end_rack_num)].avaliable_resource == racks[str(end_rack_num)].computer_resource:
+			release_rack_osm_wss_link(topology, start_rack_num,end_rack_num, mid_rack_link[1].start_wss_link.in_port.port_num)
 			pass
 		csub_path = csub_path.next
 
@@ -281,7 +302,7 @@ def release_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num, up_wss_
 	recv.to_rack = None
 	
 	# 删除osm_link中wss_link的记录
-	del osm_link.wss_link['{}_{}'.format(start_wss_in_port.port_num,
+	del osm_link.wss_link['{}_{}_{}_{}'.format(start_rack_num,end_rack_num,start_wss_in_port.port_num,
 		start_wss_out_port.port_num)]
 
 	# 改变osm_link的状态 -- 如果当wss_link为空字典时

@@ -55,7 +55,7 @@ def main():
 	# seed用于生成请求
 	set_seed_point = Point(3)
 	# erlang
-	lambda_start = 1/300
+	lambda_start = 1/10
 	# 请求的数量
 	req_sum = Point(0)
 	# seed用于泊松到达控制
@@ -104,16 +104,13 @@ def main():
 
 			all_test += 1
 			
-			if (all_test % 10) == 0:
+			if (all_test % 1000) == 0:
 				blocking = pp.fail_num/pp.process_request # 整体阻塞率
 				no_bandwidth_num_blocking = pp.no_bandwidth_num/pp.process_request # 没有波长资源而阻塞
 				no_slot_num_blocking = pp.no_slot_num/pp.process_request # 没有slot资源而阻塞
 				no_cpu_blocking = pp.no_cpu/pp.process_request # 没有计算资源而阻塞
 				switch_wss = pp.switch_wss/pp.process_request # 通过切换wss映射链的比率
 				# 每 10000条请求输出一次结果
-				print(pp.fail_num)
-				print(all_test)
-				print(pp.no_bandwidth_num)
 				print("all blocking: ", blocking)
 				print("no bandwidth blocking: ", no_bandwidth_num_blocking)
 				print("no slot blocking: ", no_slot_num_blocking)
@@ -125,7 +122,7 @@ def main():
 				file.write(str(blocking)+'\t\t'+str(no_bandwidth_num_blocking)+'\t\t'+
 					str(no_slot_num_blocking)+'\t\t' + str(no_cpu_blocking)+'\t\t' + str(switch_wss) + '\n')
 
-			if (all_test == 100):
+			if (all_test == 10000):
 				# 仿真数量的上限
 				blocking = pp.fail_num/pp.process_request # 整体阻塞率
 				no_bandwidth_num_blocking = pp.no_bandwidth_num/pp.process_request # 没有波长资源而阻塞

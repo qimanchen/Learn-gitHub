@@ -77,13 +77,13 @@ def event_handler(topology, h, pp):
 		pp.process_request += 1
 		# 映射请求
 		# 对应的值分别是，阻塞类型(正常返回None), 对应的物理路径， 对应的结点和vnf链表
-		blocking_type, sub_path, sub_ndoe_path = request_mapping(topology, h.next)
+		blocking_type, sub_path, sub_node_path = request_mapping(topology, h.next)
 
 		if not blocking_type:
 			# 请求处理成功
 			# 更新物理网络的资源状态
 			csub_path = sub_path
-			renew_resources(csub_path, vnode)	
+			renew_resources(topology, csub_path, vnode)
 		else:
 			# 请求处理失败
 			pp.fail_num += 1
