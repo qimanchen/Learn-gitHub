@@ -57,7 +57,7 @@ def create_all_request(event_queue, lambda_start, set_seed, seed, sum_time, req_
 	service_time, seed.value = negexp(mu, seed.value)
 	# 请求数量
 	req_sum.value += 1
-
+	
 	# 
 	inter_time, seed.value = negexp(lambda_start, seed.value)
 	sum_time.value += inter_time

@@ -110,6 +110,8 @@ def create_max_array(topology, vnode, vnf_num):
 	# 对应物理资源
 	# 对应的带宽资源 
 	max_mat = [[0 for i in range(vnf_num)] for _ in range(rack_num)]
+	# 求出需要的最大带宽
+	max_band_require = max([node.bandwidth_require for node in vnode.values()])
 
 	# 针对每个rack, rack的编号是从1开始的
 	for in_rack in range(1, rack_num+1):
@@ -141,7 +143,7 @@ def create_max_array(topology, vnode, vnf_num):
 						mid_id_list = wss_ports.split('_')
 						# 判断是否是两者之间的链路
 						if int(mid_id_list[0]) == in_rack and int(mid_id_list[1]) == (out_rack+1):
-							if rack_links[wss_ports].end_rack.avaliable_resource >= vnode[j].computer_require:
+							if rack_links[wss_ports].end_rack.avaliable_resource >= vnode[j].computer_require and rack_links[wss_ports].start_wss_link.bandwidth_avaliable >= max_band_require:
 								count += 1 # 标记存在可用的链路
 								# 找到所有的最大的带宽值
 								if wss_link.bandwidth_avaliable > max_bandwidth:

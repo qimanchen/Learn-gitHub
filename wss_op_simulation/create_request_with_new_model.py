@@ -71,6 +71,7 @@ def create_chose_vnf_fg_seed(n, set_seed):
 	random.seed(set_seed)
 
 	return n, set_seed, virtual_node_dict
+	
 
 def decide_vnf_forward_graph(virtual_node_dict, pp):
 	"""

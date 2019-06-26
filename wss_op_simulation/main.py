@@ -57,7 +57,7 @@ def main():
 	# seed用于生成请求
 	set_seed_point = Point(3)
 	# erlang
-	lambda_start = 1/80
+	lambda_start = 1/ERLANG
 	# 请求的数量
 	req_sum = Point(0)
 	# seed用于泊松到达控制
@@ -103,6 +103,7 @@ def main():
 	file_name = "data/test.txt"
 	file = open(file_name, 'w')
 	file.write('all blocking\t\tno bandwidth blocking\t\tno slot blocking\t\tno cpu blocking\n')
+	print(lambda_start)
 	# 整体测试的开始
 	while True:
 		if man_h.next.type == 1:
@@ -111,7 +112,7 @@ def main():
 
 			all_test += 1
 			
-			if (all_test % 1000) == 0:
+			if (all_test % 100) == 0:
 				blocking = pp.fail_num/pp.process_request # 整体阻塞率
 				no_bandwidth_num_blocking = pp.no_bandwidth_num/pp.process_request # 没有波长资源而阻塞
 
@@ -137,7 +138,7 @@ def main():
 				file.write(str(blocking)+'\t\t'+str(no_bandwidth_num_blocking)+'\t\t'+
 					str(no_slot_num_blocking)+'\t\t' + str(no_cpu_blocking)+'\t\t' + str(switch_wss) + '\n')
 
-			if (all_test == 10000):
+			if (all_test == 1000):
 				# 仿真数量的上限
 				blocking = pp.fail_num/pp.process_request # 整体阻塞率
 				no_bandwidth_num_blocking = pp.no_bandwidth_num/pp.process_request # 没有波长资源而阻塞
