@@ -89,7 +89,7 @@ def event_handler(topology, h, pp):
 			pp.fail_num += 1
 			if blocking_type == 'noEndHost' or blocking_type == "noStartHost":
 				pp.no_cpu +=1
-			elif blocking_type == 'noTrans':
+			elif blocking_type == 'noTrans' or blocking_type == "noRecv":
 				pp.no_bandwidth_num += 1
 				pp.no_trans += 1
 			elif blocking_type == "noStartSlot":

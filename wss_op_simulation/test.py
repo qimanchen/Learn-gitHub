@@ -39,10 +39,13 @@ def test_test(a):
 	
 if __name__ == "__main__":
 	
-	a = Test()
-	c = a
-	c.value += 10
-	print(test_test(c).value)
+	topology = Topology()
+
+	racks = topology.racks
+	for node in racks['1'].down_up_link.values():
+		print(node.start_port.port_use)
+		print(node.end_port.port_use)
+		print(node.link_use)
 
 	
 

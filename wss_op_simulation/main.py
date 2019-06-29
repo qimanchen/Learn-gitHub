@@ -17,6 +17,8 @@ from request_set import create_all_request
 from topology_wss_op import Topology
 # 导入请求处理函数
 from event_request import event_handler
+# 导入架构大小参数
+from wss_osm_para import RACKNUM, BVTNUM, DEGREE, WSSSLOT
 
 
 class Point(object):
@@ -100,10 +102,11 @@ def main():
 	pp.no_cpu = 0 # 由于没有计算资源而失败的请求数
 	pp.switch_wss = 0 # 通过wss转接而实现映射的请求
 
-	file_name = "data/test.txt"
+	# 对应数据文件文件名格式
+	# rack_num,bvt_num,degree,slot,load
+	file_name = "data/{}_{}_{}_{}_{}.txt".format(RACKNUM, BVTNUM, DEGREE, WSSSLOT, ERLANG)
 	file = open(file_name, 'w')
 	file.write('all blocking\t\tno bandwidth blocking\t\tno slot blocking\t\tno cpu blocking\n')
-	print(lambda_start)
 	# 整体测试的开始
 	while True:
 		if man_h.next.type == 1:
@@ -112,7 +115,7 @@ def main():
 
 			all_test += 1
 			
-			if (all_test % 100) == 0:
+			if (all_test % 10000) == 0:
 				blocking = pp.fail_num/pp.process_request # 整体阻塞率
 				no_bandwidth_num_blocking = pp.no_bandwidth_num/pp.process_request # 没有波长资源而阻塞
 
@@ -136,9 +139,10 @@ def main():
 				print()
 				# 将数据读入文件中
 				file.write(str(blocking)+'\t\t'+str(no_bandwidth_num_blocking)+'\t\t'+
-					str(no_slot_num_blocking)+'\t\t' + str(no_cpu_blocking)+'\t\t' + str(switch_wss) + '\n')
+					str(no_slot_num_blocking)+'\t\t'+ str(no_start_slot_blocking) + '\t\t' + str(no_end_slot_blocking) + '\t\t'+
+					str(no_trans_blocking)+'\t\t' + str(no_cpu_blocking)+'\t\t' + str(switch_wss) + '\n')
 
-			if (all_test == 1000):
+			if (all_test == 100000):
 				# 仿真数量的上限
 				blocking = pp.fail_num/pp.process_request # 整体阻塞率
 				no_bandwidth_num_blocking = pp.no_bandwidth_num/pp.process_request # 没有波长资源而阻塞

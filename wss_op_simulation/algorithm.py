@@ -412,6 +412,7 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 	rack_links = topology.rack_link # 获取整topology中建立的链路
 	
 	vnode_ids = list(vnode.keys()) # 记录着每个vnf所在的index
+	vnf_num = len(vnode)
 	
 	mid_sum_max_band = {} # 记录多个不同vnf的最大带宽和, rack: max_band
 	
@@ -440,8 +441,33 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 		max_band_rack = [i for i in mid_sum_max_band if mid_sum_max_band[i] == max_band]
 		# 筛选出满足计算资源的rack
 		for rack_id in max_band_rack:
-			if racks[str(rack_id)].avaliable_resource >= vnode[vnf_id].computer_require:
-				chosed_node.append(rack_id)
+			# 检测是否符合带宽要求
+			for rack_link in osm_link[str(rack_id)]:
+				if rack_link != 'None':
+					for wss_link in rack_link.wss_link:
+						if racks[str(rack_id)].avaliable_resource >= vnode[vnf_id].computer_require:
+							if rack_link.wss_link[wss_link].bandwidth_avaliable >= vnode[vnf_id].bandwidth_require:
+								chosed_node.append(rack_id)
+							else:
+								start_up_wss = racks[str(rack_id)].up_wss
+								end_down_wss = racks[str(rack_id)].down_wss
+								start_rack = racks[str(rack_id)]
+								# 检测是否有bvt剩余
+								# start_rack
+								if start_rack.trans_list.keys() == start_rack.trans_using.keys():
+									blocking_type = "noTrans"
+								elif start_up_wss.slot_plan == start_up_wss.slot_plan_use:
+									blocking_type = "noStartSlot"
+								# end_rack
+								elif end_down_wss.slot_plan == end_down_wss.slot_plan_use:
+									blocking_type = "noEndSlot"
+								else:
+									blocking_type = "other"
+						else:
+							blocking_type = 'noStartHost'
+
+			# if racks[str(rack_id)].avaliable_resource >= vnode[vnf_id].computer_require:
+			# 	chosed_node.append(rack_id)
 	else:
 		rack_mapped_list = list(rack_mapped.value.values())
 		pre_vnf = fm.value[on-1]
@@ -472,8 +498,7 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 					if mid_rack_link.start_rack.avaliable_resource >= vnode[pre_vnf].computer_require:
 						if mid_rack_link.end_rack.avaliable_resource >= vnode[vnf_id].computer_require:
 							if mid_rack_link.start_wss_link.bandwidth_avaliable >= vnode[pre_vnf].bandwidth_require:
-								# chosed_node 记录对应链的标识和相应的链对象
-								chosed_node.append((wss_link, mid_rack_link))
+									chosed_node.append((wss_link, mid_rack_link))
 							else:
 								# 检测实际阻塞原因
 								# 检测slot是否还有剩余
@@ -481,6 +506,7 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 								start_up_wss = racks[str(mid_rack_link.start_rack.rack_num)].up_wss
 								end_down_wss = racks[str(mid_rack_link.end_rack.rack_num)].down_wss
 								start_rack = racks[str(mid_rack_link.start_rack.rack_num)]
+								end_rack = racks[str(mid_rack_link.end_rack.rack_num)]
 								# 检测是否有bvt剩余
 								# start_rack
 								if start_rack.trans_list.keys() == start_rack.trans_using.keys():
@@ -490,6 +516,8 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 								# end_rack
 								elif end_down_wss.slot_plan == end_down_wss.slot_plan_use:
 									blocking_type = "noEndSlot"
+								elif end_rack.recv_list.keys() == end_rack.recv_using.keys():
+									blocking_type = "noRecv"
 								else:
 									blocking_type = "other"
 								# blocking_type = "noBvt"
