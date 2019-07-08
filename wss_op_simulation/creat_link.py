@@ -64,13 +64,6 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 			return slot_plan
 	except:
 		pass
-	# # 检测是否有相应的host可用
-	# start_host = start_rack.get_avaliable_host()
-	# if not start_host:
-	# 	return 'notStartHost'
-	# end_host = end_rack.get_avaliable_host()
-	# if not end_host:
-	# 	return 'notEndHost'
 
 	# 进行相应的设置
 	# 确认相应的设备使用
@@ -97,7 +90,7 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 	# 确认start_rack_up_wss的输入端口 -- 根据trans
 	start_wss_in_port = trans.trans_port
 	# 确认trans连接的rack
-	trans.to_rack = start_rack_num
+	trans.to_rack = end_rack_num
 	# start_rack_up_wss 建路
 	start_rack_up_wss.set_connect(slot_plan, start_wss_in_port.port_num, start_wss_out_port.port_num)
 
@@ -106,7 +99,7 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 	# 确认end_rack_down_wss的输出端口
 	end_wss_out_port = recv.recv_port
 	# 确认recv连接的rack
-	recv.to_rack = end_rack_num
+	recv.to_rack = start_rack_num
 	# end_rack_down_wss 建路
 	end_rack_down_wss.set_connect(slot_plan, end_wss_in_port.port_num, end_wss_out_port.port_num)
 
@@ -154,13 +147,13 @@ def select_slot(start_rack_up_wss, end_rack_down_wss):
 		return 'notEndWave'
 
 	# 选取规则 -- 每次选择最前面的4个slice
-	index = 4
+	index = 0
 	while index <= len(start_avaliable_slot):
-		mid_slot = start_avaliable_slot[0:index]
+		mid_slot = start_avaliable_slot[index:index+4]
 		if not end_rack_down_wss.check_slot(mid_slot):
 			return mid_slot
 		index += 4
-	return 'notSlot'
+	return 'notSameSlot'
 
 def renew_resources(topology, sub_path, vnode):
 	"""

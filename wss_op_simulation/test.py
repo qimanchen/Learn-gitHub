@@ -5,21 +5,8 @@
 """
 该模块主要为测试其他模块使用的类
 """
-from topology_wss_op import Topology,Rack
 from topology_wss_op import WSS
-from creat_link import creat_rack_osm_wss_link
-from creat_link import release_rack_osm_wss_link
-from creat_service_chain import create_fixed_request
-from creat_service_chain import create_flex_request_seed
-from creat_service_chain import create_vnf_fg_seed
-from main import init_man_queue
-from main import Point # 引入整个指针参考兑现
-from request_set import create_all_request
-from algorithm import create_max_array
-from algorithm import read_rga_link
-from create_request_with_new_model import create_chose_vnf_fg_seed, decide_vnf_forward_graph
-from main import Point
-from time_set import negexp
+
 
 class PP(object):
 	"""
@@ -39,37 +26,22 @@ def test_test(a):
 	
 if __name__ == "__main__":
 	
-	topology = Topology()
+	wss = WSS(1)
 
-	racks = topology.racks
-	for node in racks['1'].down_up_link.values():
-		print(node.start_port.port_use)
-		print(node.end_port.port_use)
-		print(node.link_use)
+	port = wss.find_useable_port()
+	slot = wss.chose_slot(port, 21)
 
+	wss.set_connect(slot, port, 21)
+
+	port = wss.find_useable_port()
+	slot = wss.chose_slot(port, 21)
+	wss.set_connect(slot, port, 21)
 	
+	print(wss.check_osm_wss_port(21))
+	print(wss.optical_link)
 
-class ShortPath(object):
-	"""
-	记录最大带宽矩阵中元素
-	"""
 
-	def __init__(self, path_id):
-	
-		# 链路编号 -- 第几条链路
-		self.id = path_id
-		# 路径类型 -- 转接或正常类型
-		self.path_type = None
-		# 映射的vnf
-		self.start_vnf = None
-		self.end_vnf = None
-		# 起始rack
-		self.start_rack = None
-		# 终止rack
-		self.end_rack = None
-		# 对应的物理路径
-		self.rack_link = None
-		# 连接的下一端口
-		self.next = None
+
+
 
 

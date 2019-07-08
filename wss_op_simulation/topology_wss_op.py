@@ -86,7 +86,7 @@ class OSMOpticalLink(object):
 		# 当它为None时，表示该osm两端还没有建立任何通信链路
 		# 即表示当link_use = None
 		# 只记录对应的start rack 的 up_wss的链路
-		# {'start_wss_in_port'_'start_wss_out_port': up_wss WssOpticalLink}
+		# {'start_wss_in_port'_'start_wss_out_port'_slotplan: up_wss WssOpticalLink}
 		self.wss_link = None
 	
 	@property
@@ -175,6 +175,7 @@ class OSM(object):
 	def create_connect(self, inport_num, outport_num):
 		"""
 		建立或修改一个光连接
+		建立光连接时需要确认对应的端口是否已经被使用
 		"""
 		if str(inport_num) not in self.in_port_list:
 			raise ValueError('%s-输入端口不存在！' % str(inport_num))
@@ -258,11 +259,18 @@ class WSSPort(object):
 		# 当端口中的slot没有被使用时，表示port未被使用
 
 		# 只有'output'端口需要指定分配波长
-		self.slot_plan = slot # 指定端口的波长范围
-		self.slot_use = [] # 默认是没有被使用的
+		# 每个output有一组波长
+		# 只要满足相应的端口没有同一个波长即可
+		# 主要有两个关键点：
+		# 1. 输入端口是否有对应发射机
+		# 2. 输出端口是否已经存在相应的波长（slot）
+		self.slot_plan = [i for i in range(1, WSSSLOT//4+1)] # 指定端口可用波长范围
+		self.slot_num = 0 # 记录当前端口已经使用的次数，对于输入端口(连接发射机和接收机的位置)最多只能使用三次
+		# 记录端口已经连接的其他端口以及对应的slot
+		self.slot_use = None # {"inport_outport_slotplan": slot_plan}
 		self._wss_type = wss_type # 指定wss的类型, 'up', 'down'
 
-		self.optical_port = optical_port # wss内部的连接，可能存在多个端口连接
+		# self.optical_port = optical_port # wss内部的连接，可能存在多个端口连接
 		self.physic_port = physic_port # wss连接的物理端口指定osm的端口号
 
 	@property
@@ -286,6 +294,9 @@ class WSSOpticalLink(object):
 
 	def __init__(self, slot_plan, in_port, out_port, link_use=False):
 		# 链路通信使用的slot
+		# 链路的端口号可能相同，但slot plan一定是不同的
+		# 记录端口的编号
+		self.link_id = None # inportnum_outportnum_slotplan: string
 		self.slot_plan = slot_plan # slot分配
 		# wss内部连接
 		# 输入端口
@@ -340,19 +351,32 @@ class WSS(object):
 			self.out_port_list_num = osm_link_port_size
 
 		# wss支持的整个slot范围
-		self._slot_plan = [i for i in range(1, slot_plan_size+1)]
+		self._slot_plan = [i for i in range(1, slot_plan_size//4+1)]
 
 		# wss中已经使用的slot，只针对outport
-		self.slot_plan_use = []
+		# N*N的wss考虑的时候
+		# 每个输入端口可以输入不同的波长（每个输入有一组波长）
+		# 每个输出有一组波长
+		# self.slot_plan_use = []
 
 		# wss内部的路由记录
-		# up_wss的链路是记录输入端口 {in_port:link_object}
-		# down wss 记录输出端口（大数字输入端口）{out_port:link_object}
+		# up_wss的链路是记录输入端口 {inport_outport_slotplan:link_object}
+		# down wss 记录输出端口（大数字输入端口）{outport_inport_slotplan:link_object}
 		self.optical_link = {}
+		self.in_port_usenum = {} # 输入端口的使用次数 - {port_num: 使用次数}
+		self.out_port_usenum = {} # 输出端口使用的次数 - 
+		# 端口选用规则，每次选用使用次数最小或没有使用过的端口（负载均衡）
 
 		# 初始化wss的端口
 		self.in_port, self.out_port = self.__init_wss_port(self.in_port_list_num, self.out_port_list_num, self._wss_type, self._rack_num)
 
+		# 初始化对应端口的使用次数
+		for p in self.in_port.values():
+			if p.slot_use is None:
+				self.in_port_usenum[p.port_num] = 0
+		for p in self.out_port.values():
+			if p.slot_use is None:
+				self.out_port_usenum[p.port_num] = 0
 		# 整体端口的状态
 		self._port = {}
 		self._port.update(self.in_port)
@@ -397,68 +421,84 @@ class WSS(object):
 		outport的端口号大
 		"""
 		# inport 初始化，上行和下行是不同的
-		in_port = {str(i): WSSPort(i, rack_num=rack_num, port_type='inport', wss_type=wss_type, slot=[]) for i in range(1, in_port_size+1)}
+		in_port = {str(i): WSSPort(i, rack_num=rack_num, port_type='inport', wss_type=wss_type) for i in range(1, in_port_size+1)}
 		# ouport 初始化
-		out_port = {str(i): WSSPort(i, rack_num=rack_num, port_type='outport', wss_type=wss_type, slot=[]) 
+		out_port = {str(i): WSSPort(i, rack_num=rack_num, port_type='outport', wss_type=wss_type) 
 		for i in range(in_port_size+1, in_port_size+out_port_size+1)}
 
 		return in_port, out_port
 
-	def check_slot(self, slot_plan):
+	def check_osm_wss_port(self, port_num):
 		"""
-		检测某个slot plan是否已经使用
+		检查osm与wss连接的端口是否还有可用波长
 		"""
-		if set(slot_plan) <= set(self.slot_plan_use):
+		if self._port[str(port_num)].slot_num != WSSSLOT//4:
+			# 该端口还可用
 			return True
 		else:
+			# 该端口不可用
 			return False
 
-	def check_useable_slot(self):
+	def find_useable_port(self):
 		"""
-		得到可用slot列表
+		找到对应的可用port
+		up: 输入端口
+		down: 输出端口
 		"""
-		useable_slot = []
-		
-		for i in self._slot_plan:
-			if i not in self.slot_plan_use:
-				useable_slot.append(i)
-		return useable_slot
-
-	def check_port(self, port_num):
-		"""
-		检测一个端口是否已经在使用
-		"""
-		return self._port[str(port_num)].port_use
-
-	def add_new_slot(self):
-		"""
-		增加新的slot plan, 每次使用4个slot
-		"""
-		useable_slot = self.check_useable_slot()
-
-		return useable_slot[0:4]
-
-	def check_link_use(self, port_num):
-		"""
-		检测链路是否在使用
-		"""
-		if str(port_num) in self._port:
-			if self._port[str(port_num)].port_use:
-				if self.optical_link[str(port_num)].link_use:
-					raise ValueError("链路正在使用，请不要修改slot plan !")
-				else:
-					inport = self.optical_link[str(port_num)].start_port.port_num
-					outport = self.optical_link[str(port_num)].end_port.port_num
-					delete_connect(inport, outport)
+		if self._wss_type == "down":
+			# 确定输出端口
+			min_num = min(self.out_port_usenum.values())
+			if min_num == 3:
+				return False
+			for port, num in self.out_port_usenum.items():
+				if num == min_num:
+					return port
+		elif self._wss_type == "up":
+			# 确定输入端口
+			min_num = min(self.in_port_usenum.values())
+			if min_num == 3:
+				return False
+			for port, num in self.in_port_usenum.items():
+				if num == min_num:
+					return port
 		else:
-			raise ValueError('%s 端口不存在，请重新设置！')
+			raise ValueError("端口类型错误")
 
-	def update_slot_plan(self, slot_plan, in_port, out_port):
+	def chose_slot(self, in_port_num, out_port_num):
 		"""
-		更新wss slot plan 为内部连接转换实现
+		确定对应：
+		up wss： 输出端口的slot
+		down wss： 输入端口的slot
 		"""
+		in_port = self.in_port[str(in_port_num)]
+		out_port = self.out_port[str(out_port_num)]
 
-	def set_up_wss(self, slot_plan, in_port, out_port):
+		# 确定端口已经使用
+		in_port_slot_use = None
+		if in_port.slot_use:
+			in_port_slot_use = in_port.slot_use.values() # 输入端口使用的slot
+		out_port_slot_use = None
+		if out_port.slot_use:
+			out_port_slot_use = out_port.slot_use.values() # 输出端口使用了的slot
+		
+		for slot in self._slot_plan:
+			if not in_port_slot_use and not out_port_slot_use:
+				# 当输入端口和输出端口都没有使用时
+				return slot
+			if in_port_slot_use and not out_port_slot_use and (slot not in in_port_slot_use):
+				# 输入端口已经使用，而输出端口未使用
+				return slot
+
+			elif not in_port_slot_use and out_port_slot_use and (slot not in out_port_slot_use):
+				# 输入端口未使用，而输出端口已经使用
+				return slot
+			elif in_port_slot_use and out_port_slot_use and (slot not in in_port_slot_use) and (slot not in out_port_slot_use):
+				# 两边的端口都已经使用了
+				return slot
+		else:
+			raise ValueError("端口设置错误 -- 选择slot")
+
+	def set_connect(self, slot_plan, in_port, out_port):
 		"""
 		设置上行wss的链路
 		上行wss，输入端大于输出端
@@ -470,148 +510,65 @@ class WSS(object):
 
 		:param slot_plan: 使用的slot plan
 		"""
-		if self.check_slot(slot_plan):
-			raise ValueError('该slot波段已经使用！')
 
-		inport = self._port[str(in_port)]
-		# 检测in_port的光路是否在使用
-		self.check_link_use(in_port)
-		outport = self._port[str(out_port)]
-
-		# 设置端口的plan
-		inport.slot_plan = slot_plan # 由收发机决定
-		# 注意slot plan 是个列表
-		outport.slot_plan.extend(slot_plan) # 由输出端决定，即指定rack的接收端决定
-		# 更新已使用的slot
-		self.slot_plan_use.extend(slot_plan)
-
-		# 设置端口连接的端口
-		inport.optical_port = outport
-		if outport.optical_port is None:
-			outport.optical_port = {}
-		outport.optical_port[str(inport.port_num)] = inport
-
-		# 更新端口状态
-		inport.port_use = True
-		if outport.port_use == False:
-			outport.port_use = True
-		self.optical_link[str(in_port)] = WSSOpticalLink(slot_plan, inport, outport, link_use=True)
-
-	def delete_up_wss(self, in_port, out_port):
-		"""
-		删除上行wss的链路
-		"""
+		# 确定输入输出端口对象
 		inport = self._port[str(in_port)]
 		outport = self._port[str(out_port)]
+
+		# 更新端口slot信息
+		if not inport.slot_use:
+			inport.slot_use = {}
+		inport.slot_use[f'{in_port}_{out_port}_{slot_plan}'] = slot_plan
+		inport.slot_num += 1
+		self.in_port_usenum[in_port] += 1
+
+		if not outport.slot_use:
+			outport.slot_use = {}
+		outport.slot_use[f'{in_port}_{out_port}_{slot_plan}'] = slot_plan
+		outport.slot_num += 1
+		self.out_port_usenum[out_port] += 1
+
+		self.optical_link[f'{in_port}_{out_port}_{slot_plan}'] = WSSOpticalLink(slot_plan, inport, outport, link_use=True)
+
+	def delete_connect(self, slot_plan, in_port, out_port):
+		"""
+		删除wss的链路
+		"""
+		inport = self._port[str(in_port)]
+		if not inport.slot_use:
+			raise ValueError("没有建立相应的链路")
+		outport = self._port[str(out_port)]
+		if not outport.slot_use:
+			raise ValueError("没有建立相应的链路")
 
 		# 更新各个结点的slot
-		for i in inport.slot_plan:
-			outport.slot_plan.remove(i)
-			self.slot_plan_use.remove(i)
-		inport.slot_plan = None
+		# 输入端口
+		del_inport = None
+		for port, slot in inport.slot_use.items():
+			if f'{in_port}_{out_port}_{slot_plan}' == port:
+				del_inport = port
+				break
+		else:
+			raise ValueError("前面建路错误")
+		del inport.slot_use[del_inport]
+		inport.slot_num -= 1
+		self.in_port_usenum[in_port] -= 1
 
-		# 更新连接端口
-		inport.optical_port = None
-		del outport.optical_port[str(inport.port_num)]
-
-		# 更新端口状态
-		inport.port_use = False
-		if not len(outport.slot_plan):
-			outport.port_use = False
+		# 输出端口
+		del_outport = None
+		for port, slot in outport.slot_use.items():
+			if f'{in_port}_{out_port}_{slot_plan}' == port:
+				del_outport = port
+				break
+		else:
+			raise ValueError("前面建路错误")
+		del outport.slot_use[del_outport]
+		outport.slot_num -= 1
+		self.out_port_usenum[out_port] -= 1
 
 		# 删除对应的连接
-		del self.optical_link[str(in_port)]
+		del self.optical_link[f'{in_port}_{out_port}_{slot_plan}']
 
-	def set_down_wss(self, slot_plan, in_port, out_port):
-		"""
-		设置下行wss链路
-		上行wss，输入端大于输出端
-		输入：
-		D个端口连接上层osm
-		输出：
-		有M个端口是向下连接bvt
-		D个端口向右连接下行wss		
-		"""
-		if self.check_slot(slot_plan):
-			raise ValueError('该slot波段已经使用！')
-
-		inport = self._port[str(in_port)]
-		outport = self._port[str(out_port)]
-		self.check_link_use(out_port)
-
-		# 设置端口的plan
-		outport.slot_plan = slot_plan # 由收发机决定
-		# 注意slot plan 是个列表
-		inport.slot_plan.extend(slot_plan) # 由输出端决定，即指定rack的接收端决定
-		# 更新已使用的slot
-		self.slot_plan_use.extend(slot_plan)
-
-		# 设置端口连接的端口
-		outport.optical_port = inport
-		if inport.optical_port is None:
-			inport.optical_port = {}
-		inport.optical_port[str(outport.port_num)] = outport
-
-		# 更新端口状态
-		outport.port_use = True
-		if inport.port_use == False:
-			inport.port_use = True
-		self.optical_link[str(out_port)] = WSSOpticalLink(slot_plan, inport, outport, link_use=True)
-
-	def delete_down_wss(self, in_port, out_port):
-		"""
-		删除下行wss的链路
-		"""
-		inport = self._port[str(in_port)]
-		outport = self._port[str(out_port)]
-
-		# 更新各个结点的slot
-		for i in outport.slot_plan:
-			inport.slot_plan.remove(i)
-			self.slot_plan_use.remove(i)
-		outport.slot_plan = None
-
-		# 更新连接端口
-		outport.optical_port = None
-		del inport.optical_port[str(outport.port_num)]
-
-		# 更新端口状态
-		outport.port_use = False
-		if not len(inport.slot_plan):
-			inport.port_use = False
-		
-		# 删除对应的连接
-		if str(out_port) not in self.optical_link:
-			raise ValueError("该wss不存在这条链路")
-		del self.optical_link[str(out_port)]
-
-	def set_connect(self, slot_plan, inport, outport):
-		"""
-		确定光连接，确定哪一个端口连接那一个端口
-		1. 可能个输入端口连接多个输出端口
-		:param slot_plan: 输入端进来的slot范围
-		"""
-		# 防止输入出错误
-		if inport > outport:
-			inport, outport = outport, inport
-
-		if self._wss_type == "up":
-			self.set_up_wss(slot_plan, inport, outport)
-		else:
-			self.set_down_wss(slot_plan, inport, outport)
-	
-	def delete_connect(self, inport, outport):
-		"""
-		删除一条连接，清除optical_link中的记录
-		"""
-		if inport > outport:
-			inport, outport = outport, inport
-
-		if self._wss_type == "up":
-			self.delete_up_wss(inport, outport)
-		else:
-			self.delete_down_wss(inport, outport)
-	
 
 class Recv(object):
 	"""
@@ -619,7 +576,7 @@ class Recv(object):
 	"""
 	def __init__(self, recv_num, rack= None, recv_wave=None, recv_use=False):
 		self._recv_num = recv_num # 接收机编号
-		self.recv_wave = recv_wave # 接收机接收波长
+		self.recv_wave = recv_wave # 接收机接收波长 # slot_plan
 		self.recv_use = recv_use # 接收机使用状态
 		self.recv_port = None # 接收机连接下行wss的端口
 		self.to_rack =None # 接收机接收信号来源的rack
@@ -642,7 +599,7 @@ class Trans(object):
 	def __init__(self, trans_num, rack=None, trans_wave=None, trans_use=False):
 		self._trans_num = trans_num # 发射机的编号
 		self._rack = rack # 发射机所在rack
-		self.trans_wave = trans_wave # 发射机发射的波长
+		self.trans_wave = trans_wave # 发射机发射的波长 # slot_plan
 		self.trans_use = trans_use # 发射机使用的状态
 		self.trans_port = None # 发射机连接的上行wss的port
 		self.to_rack = None # 发射机发射波长的目标rack
@@ -742,6 +699,7 @@ class RackLink(object):
 	两个rack之间的相连
 	"""
 	def __init__(self):
+		self.link_type = 'noSwitch' # 显示非交换链路
 		self.start_rack = None # start_rack # 发射信号的rack
 		self.end_rack = None # end_rack # 接收信号的rack
 		self.osm_link = None # osm_link # osm中的连接链路
@@ -753,6 +711,29 @@ class RackLink(object):
 
 		# self.start_host = None # start rack中的host
 		# self.end_host = None # end rack中的host
+
+class RackSwitchLink(object):
+	"""
+	当rack跨wss对应的链路变化
+	rack1 - rack2(只经过wss, 不进入到rack内部) - rack3
+	"""
+	def __init__(self):
+		self.link_type = 'switch' # 交换链路
+		self.start_rack = None # start_rack 发射信号的rack
+		self.mid_rack = None # 中转的rack（只消耗slot）
+		self.end_rack = None # 目标rack
+
+		self.start_mid_osm_link = None # start to mid的osm链接
+		self.mid_end_osm_link = None # mid to end的链接
+
+		self.start_wss_link = None # start rack内的wss链接
+		self.mid_end_wss_link = None # 进入中转wss链接
+		self.mid_start_wss_link = None # 出中转rack wss的链接
+		self.end_wss_link = None # 目标rack的wss链接
+
+		self.trans = None # 发射信号的发射机
+		self.recv = None # 接收信号的接收机
+		self.slot_plan = None # 链路中的波长
 
 class DownUpWssLink(object):
 	"""
@@ -811,6 +792,7 @@ class Rack(object):
 		# 记录转接链路 -- 下行wss转接到上行wss上去
 		# 测试链路转接使用
 		self.down_up_link = {}
+		# {end_wss_port: DownUpWssLink}
 		self.down_up_link_using = {} # 记录使用了的链
 
 		# rack的输入输出端口记录，主要是对wss端口的一个索引
@@ -818,7 +800,8 @@ class Rack(object):
 		# self._out_port = {}
 
 		self.set_link_osm() # 设置wss与osm的物理连接
-		self.set_link_bvt() # 设置wss与recv和trans的物理连接
+		# 对应的recv任意使用，同一端口可以使用多个端口
+		# self.set_link_bvt() # 设置wss与recv和trans的物理连接
 		self.set_up_down() # 设置上行wss与下行wss的连接
 
 	@property
@@ -834,6 +817,17 @@ class Rack(object):
 				return self.host_list[i]
 		else:
 			# 没有可用host
+			return None
+
+	def get_avaliable_switch_link(self):
+		"""
+		获取对应的wss切换的链路
+		"""
+		for i in self.down_up_link:
+			if i not in self.down_up_link_using:
+				return self.down_up_link[i]
+		else:
+			# 没有可以切换的链路
 			return None
 
 	def get_avaliable_trans(self):
@@ -961,12 +955,14 @@ class Topology(object):
 
 		# 记录rack之间完整链路的信息
 		# {'start_rack_num'_'end_rack_num'_'osm_in_put'_'out_put': RackLink}
+		# 注意之里面存在着link type
 		self.rack_link = {} # 结构建RackLink
 
 		# 拓扑文件名
 		self.topo_file = topo_file
 		# 记录rack之间的链（osm之间的链）
 		self.link = {} #{'rack_num':[osm.optical_link object, 'None']}
+		# 注意修改链路后对应的[[同一个rack对应着多条链路]]
 		# 提供链路的索引 -- 与拓扑文件一致 但只记录连接的结点
 		self.index_link = [] #[[] -- rack1 连接的结点]
 		# osm内部的光链路初始化，以及取得整个链路表

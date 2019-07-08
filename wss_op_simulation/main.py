@@ -104,9 +104,11 @@ def main():
 
 	# 对应数据文件文件名格式
 	# rack_num,bvt_num,degree,slot,load
-	file_name = "data/{}_{}_{}_{}_{}.txt".format(RACKNUM, BVTNUM, DEGREE, WSSSLOT, ERLANG)
+	file_name = "data/test.txt"
+	# file_name = "data/{}_{}_{}_{}_{}.txt".format(RACKNUM, BVTNUM, DEGREE, WSSSLOT, ERLANG)
 	file = open(file_name, 'w')
 	file.write('all blocking\t\tno bandwidth blocking\t\tno slot blocking\t\tno cpu blocking\n')
+	print("Load: ", ERLANG)
 	# 整体测试的开始
 	while True:
 		if man_h.next.type == 1:
