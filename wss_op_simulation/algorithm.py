@@ -456,11 +456,11 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 								# start_rack
 								if start_rack.trans_list.keys() == start_rack.trans_using.keys():
 									blocking_type = "noTrans"
-								elif start_up_wss.slot_plan == start_up_wss.slot_plan_use:
-									blocking_type = "noStartSlot"
-								# end_rack
-								elif end_down_wss.slot_plan == end_down_wss.slot_plan_use:
-									blocking_type = "noEndSlot"
+								# elif start_up_wss.slot_plan == start_up_wss.slot_plan_use:
+								# 	blocking_type = "noStartSlot"
+								# # end_rack
+								# elif end_down_wss.slot_plan == end_down_wss.slot_plan_use:
+								# 	blocking_type = "noEndSlot"
 								else:
 									blocking_type = "other"
 						else:

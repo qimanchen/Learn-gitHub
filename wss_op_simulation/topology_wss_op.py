@@ -464,8 +464,10 @@ class WSS(object):
 		else:
 			raise ValueError("端口类型错误")
 
-	def chose_slot(self, in_port_num, out_port_num):
+	def chose_slot(self, in_port_num, out_port_num, same_slot=None):
 		"""
+		same_slot: 已经被使用的slot列表
+		
 		确定对应：
 		up wss： 输出端口的slot
 		down wss： 输入端口的slot
@@ -482,13 +484,15 @@ class WSS(object):
 			out_port_slot_use = out_port.slot_use.values() # 输出端口使用了的slot
 		
 		for slot in self._slot_plan:
+			if same_slot and slot in same_slot:
+				# 当slot被已经被使用的列表中时，直接跳过
+				continue
 			if not in_port_slot_use and not out_port_slot_use:
 				# 当输入端口和输出端口都没有使用时
 				return slot
 			if in_port_slot_use and not out_port_slot_use and (slot not in in_port_slot_use):
 				# 输入端口已经使用，而输出端口未使用
 				return slot
-
 			elif not in_port_slot_use and out_port_slot_use and (slot not in out_port_slot_use):
 				# 输入端口未使用，而输出端口已经使用
 				return slot
@@ -496,7 +500,8 @@ class WSS(object):
 				# 两边的端口都已经使用了
 				return slot
 		else:
-			raise ValueError("端口设置错误 -- 选择slot")
+			# 没有可用slot -- 由于没有公共可用的slot
+			return False
 
 	def set_connect(self, slot_plan, in_port, out_port):
 		"""
@@ -507,7 +512,6 @@ class WSS(object):
 		D个端口向右连接下行wss
 		输出：
 		D个端口连接上层osm
-
 		:param slot_plan: 使用的slot plan
 		"""
 

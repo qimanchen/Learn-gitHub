@@ -47,6 +47,39 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 	start_rack_up_wss = start_rack.up_wss
 	end_rack_down_wss = end_rack.down_wss
 
+	# 确定两个rack之间osm链路
+	osm_link = topology.link[str(start_rack_num)][end_rack_num-1]
+	# 改变osm_link的状态
+	osm_link.link_use = True
+
+	# 对应的osm_link的输入和输出端口
+	start_rack_osm_port = osm_link.start_port
+	end_rack_osm_port = osm_link.end_port
+
+	# 对应的osm_link连接到的上行wss的端口，下行wss的端口
+	start_rack_up_wss_port = start_rack_osm_port.physic_port.wss_port
+	end_rack_down_wss_port = end_rack_osm_port.physic_port.wss_port
+
+	# 对应的端口编号
+	start_rack_up_wss_port_id = start_rack_up_wss_port.port_num
+	# 检测对应的端口的slot是否已经使用完
+	if not start_rack_up_wss.check_osm_wss_port(start_rack_up_wss_port_id):
+		# 对应start rack的输出端口的slot已经使用完
+		return "noStartOutPort"
+	end_rack_down_wss_port_id = end_rack_down_wss_port.port_num
+	if not end_rack_down_wss.check_osm_wss_port(end_rack_down_wss_port_id):
+		# 对应的end rack的输入端口的slot已经使用完
+		return "noEndInPort"
+
+	# 确定start rack的上行wss输入端口
+	up_wss_in_port_id = start_rack_up_wss.find_useable_port()
+	if not up_wss_in_port_id:
+		return "noStartInPort"
+	# 确定end rack的下行wss的输出端口
+	down_wss_out_port_id = end_rack_down_wss.find_useable_port()
+	if not down_wss_out_port_id:
+		return "noEndOutPort"
+
 	# 检查是否有可用的发射机 -- start_rack
 	trans = start_rack.get_avaliable_trans()
 	if not trans:
@@ -57,13 +90,11 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 		return 'notRecv'
 	# 检查startrack是否有可用波长
 	# 检查endrack是否有同样的可用波长
-	slot_plan = select_slot(start_rack_up_wss, end_rack_down_wss)
-	# 没有相应的波长资源,返回相应的标记信息
-	try:
-		if isinstance(slot_plan, str):
-			return slot_plan
-	except:
-		pass
+	end_down_wss_use_slot = end_rack_down_wss_port.slot_use
+	slot_plan = start_rack_up_wss.chose_slot(up_wss_in_port_id, start_rack_up_wss_port_id, end_down_wss_use_slot)
+	if not slot_plan:
+		# 没有相同的slot可用
+		return "noSameSlot"
 
 	# 进行相应的设置
 	# 确认相应的设备使用
@@ -71,44 +102,17 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 	start_rack.trans_using[str(trans.trans_num)] = trans
 	# recv
 	end_rack.recv_using[str(recv.recv_num)] = recv
-	# # start_host
-	# start_rack.host_using[str(start_host.host_num)] = start_host
-	# # end_host
-	# end_rack.host_using[str(end_host.host_num)] = end_host
-
-	# 通过rack的连接来确认
-	# 确定相应的osm链
-	osm_link = topology.link[str(start_rack_num)][end_rack_num-1]
-	# 改变osm_link的状态
-	osm_link.link_use = True
 	
-	osm_start_port = osm_link.start_port # 确认osm输入端口
-	osm_end_port = osm_link.end_port # 确认osm输出端口 -- osmPort object
-	
-	# 确认start_rack_up_wss的输出端口 -- WssPort object
-	start_wss_out_port = osm_start_port.physic_port.wss_port
-	# 确认start_rack_up_wss的输入端口 -- 根据trans
-	start_wss_in_port = trans.trans_port
-	# 确认trans连接的rack
-	trans.to_rack = end_rack_num
 	# start_rack_up_wss 建路
-	start_rack_up_wss.set_connect(slot_plan, start_wss_in_port.port_num, start_wss_out_port.port_num)
-
-	# 确认end_rack_down_wss的输入端口
-	end_wss_in_port = osm_end_port.physic_port.wss_port
-	# 确认end_rack_down_wss的输出端口
-	end_wss_out_port = recv.recv_port
-	# 确认recv连接的rack
-	recv.to_rack = start_rack_num
-	# end_rack_down_wss 建路
-	end_rack_down_wss.set_connect(slot_plan, end_wss_in_port.port_num, end_wss_out_port.port_num)
+	start_rack_up_wss.set_connect(slot_plan, up_wss_in_port_id, start_rack_up_wss_port_id)
+	end_rack_down_wss.set_connect(slot_plan, end_rack_down_wss_port_id, down_wss_out_port_id)
 
 	# 更新osm中wss_link --> 带宽确认
 	if not osm_link.wss_link:
 		osm_link.wss_link = {}
 	# 记录相应的链路方便带宽查询
-	osm_link.wss_link['{}_{}_{}_{}'.format(start_rack_num, end_rack_num, start_wss_in_port.port_num,
-		start_wss_out_port.port_num)] = start_rack_up_wss.optical_link[str(start_wss_in_port.port_num)]
+	osm_link.wss_link['{}_{}_{}_{}_{}'.format(start_rack_num, end_rack_num, up_wss_in_port_id,
+		start_rack_up_wss_port_id, slot_plan)] = start_rack_up_wss.optical_link[f'{up_wss_in_port_id}_{start_rack_up_wss_port_id}_{slot_plan}']
 
 	# 记录该条物理链路的完整信息
 	rack_link = RackLink()
@@ -117,8 +121,8 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 
 	rack_link.osm_link = osm_link
 
-	rack_link.start_wss_link = start_rack_up_wss.optical_link[str(start_wss_in_port.port_num)]
-	rack_link.end_wss_link = end_rack_down_wss.optical_link[str(end_wss_out_port.port_num)]
+	rack_link.start_wss_link = start_rack_up_wss.optical_link[f'{up_wss_in_port_id}_{start_rack_up_wss_port_id}_{slot_plan}']
+	rack_link.end_wss_link = end_rack_down_wss.optical_link[f'{end_rack_down_wss_port_id}_{down_wss_out_port_id}_{slot_plan}']
 
 	rack_link.trans = trans
 	rack_link.recv = recv
@@ -126,10 +130,11 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 	# rack_link.start_host = start_host
 	# rack_link.end_host = end_host
 
-	topology.rack_link['{}_{}_{}_{}'.format(start_rack_num,end_rack_num,
-		start_wss_in_port.port_num,start_wss_out_port.port_num)] = rack_link
+	topology.rack_link['{}_{}_{}_{}_{}'.format(start_rack_num, end_rack_num, up_wss_in_port_id,
+		start_rack_up_wss_port_id, slot_plan)] = rack_link
 	return rack_link
 
+# TODO 目前这个函数不用
 def select_slot(start_rack_up_wss, end_rack_down_wss):
 	"""
 	确认新建链路的slot -- 波长
@@ -237,23 +242,28 @@ def release_resources(sub_path, vnode, topology):
 		end_rack_num = mid_rack_link[1].end_rack.rack_num
 		wss_link_id = mid_rack_link[0]
 		if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable == rack_links[wss_link_id].start_wss_link.bandwidth and racks[str(start_rack_num)].avaliable_resource == racks[str(start_rack_num)].computer_resource and racks[str(end_rack_num)].avaliable_resource == racks[str(end_rack_num)].computer_resource:
-			release_rack_osm_wss_link(topology, start_rack_num,end_rack_num, mid_rack_link[1].start_wss_link.in_port.port_num)
-			pass
+			release_rack_osm_wss_link(topology, wss_link_id)
 		csub_path = csub_path.next
 
-def release_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num, up_wss_inport):
+def release_rack_osm_wss_link(topo_object, rack_link_id):
 	"""
 	当检测到wss中的带宽完全空闲时 -- 可用资源等于初始资源
 	释放到相应的wss中的链路
 	释放掉相应的trans和recv
 	释放掉相应的host的资源
 
-	:param up_wss_inport: 具体光学链路的唯一标识,上行wss的inport端口号
+	:param rack_link_id: 对应物理链路的唯一标识
 	"""
+	# 解析出整个链路的基本信息
+	# 起始rack
+	# 终点rack
+	# up wss 的输入端口号
+	# up wss 的输出端口号
+	# 对应的波长 slot plan
+	start_rack_num, end_rack_num, up_wss_in_port_id, up_wss_out_port_id, slot_plan = list(map(int, rack_link_id.split('_')))
 	topology = topo_object
 	# 确认操作rack对象
 	start_rack = topo_object.racks[str(start_rack_num)]
-
 	end_rack = topo_object.racks[str(end_rack_num)]
 
 	# 确认操作wss对象
@@ -267,44 +277,26 @@ def release_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num, up_wss_
 	osm_start_port = osm_link.start_port # 确认osm输入端口
 	osm_end_port = osm_link.end_port # 确认osm输出端口 -- osmPort object
 
-	# 确认start_rack_up_wss的输出端口 -- WssPort object
-	start_wss_out_port = osm_start_port.physic_port.wss_port
-
-	rack_link = topology.rack_link['{}_{}_{}_{}'.format(start_rack_num,end_rack_num,
-		up_wss_inport,start_wss_out_port.port_num)]
+	rack_link = topology.rack_link[rack_link_id]
 
 	# 确认相关的信息
 	trans = rack_link.trans
 	recv = rack_link.recv
-	# start_host = rack_link.start_host
-	# end_host = rack_link.end_host
-	
-	# 确认start_rack_up_wss的输出端口 -- WssPort object
-	start_wss_out_port = osm_start_port.physic_port.wss_port
-	# 确认start_rack_up_wss的输入端口 -- 根据trans
-	start_wss_in_port = trans.trans_port
-	# 确认trans连接的rack
-	trans.to_rack = None
-	
 
-	# 确认end_rack_down_wss的输入端口
-	end_wss_in_port = osm_end_port.physic_port.wss_port
-	# 确认end_rack_down_wss的输出端口
-	end_wss_out_port = recv.recv_port
-	# 删除recv连接的rack
-	recv.to_rack = None
+	# 确认out rack的down wss 的端口
+	down_wss_link = rack_link.end_wss_link
+	down_wss_in_port = down_wss_link.in_port
+	down_wss_out_port = down_wss_link.out_port
 	
 	# 删除osm_link中wss_link的记录
-	del osm_link.wss_link['{}_{}_{}_{}'.format(start_rack_num,end_rack_num,start_wss_in_port.port_num,
-		start_wss_out_port.port_num)]
+	del osm_link.wss_link[rack_link_id]
 
 	# 改变osm_link的状态 -- 如果当wss_link为空字典时
 	if not osm_link.wss_link:
 		osm_link.link_use = False
 
 	# 删除rack_link中的记录
-	del topology.rack_link['{}_{}_{}_{}'.format(start_rack_num,end_rack_num,
-		up_wss_inport,start_wss_out_port.port_num)]
+	del topology.rack_link[rack_link_id]
 
 	del start_rack.trans_using[str(trans.trans_num)]
 	# recv
@@ -315,8 +307,8 @@ def release_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num, up_wss_
 	# del end_rack.host_using[str(end_host.host_num)]
 
 	# start_rack_up_wss 建路
-	start_rack_up_wss.delete_connect(start_wss_in_port.port_num, start_wss_out_port.port_num)
+	start_rack_up_wss.delete_connect(slot_plan, up_wss_in_port_id, up_wss_out_port_id)
 
 	# 删除end_rack_down_wss 建路
-	end_rack_down_wss.delete_connect(end_wss_in_port.port_num, end_wss_out_port.port_num)
+	end_rack_down_wss.delete_connect(slot_plan, down_wss_in_port.port_num, down_wss_out_port.port_num)
 
