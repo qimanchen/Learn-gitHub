@@ -16,7 +16,7 @@ def creat_switch_link(topo_object, rack_num, start_osm_port, end_osm_port):
 	建立某个rack内部的中转链路
 	"""
 
-def creat_rack_switch_link(topo_object, start_rack_num, end_rack_num, mid_rack_num):
+def creat_rack_switch_link(topo_object, start_rack_num, mid_rack_num, end_rack_num):
 	"""
 	建立rack之间的转接链路
 	"""
@@ -31,7 +31,7 @@ def creat_rack_switch_link(topo_object, start_rack_num, end_rack_num, mid_rack_n
 
 	# 确认操作wss对象
 	start_rack_up_wss = start_rack.up_wss
-
+	# 确认对应的中间rack的wss
 	mid_rack_up_wss = mid_rack.up_wss
 	mid_rack_down_wss = mid_rack.down_wss
 
@@ -49,70 +49,103 @@ def creat_rack_switch_link(topo_object, start_rack_num, end_rack_num, mid_rack_n
 	switch_link = mid_rack.get_avaliable_switch_link()
 	if not switch_link:
 		return 'notSwitch'
-
-	# 检查是否有相同的波长 -- start_rack with mid_rack
-	# 检查是否有相同的波长 -- mid_rack with end_rack
-	slot_plan = select_slot(strat_rack_up_wss, mid_rack_down_wss, mid_rack_up_wss, end_rack_down_wss)
-	# 若没有相同的波长资源，返回相应的标记信息
-	try:
-		if isinstance(slot_plan, str):
-			return slot_plan
-	except:
-		pass
-
-	# 确认相应的操作设置
-	start_rack.trans_using[str(trans.trans_num)] = trans
-
-	end_rack.recv_using[str(recv.recv_num)] = recv
+	# 确定mid rack的上行wss的输入端口和输入端口
+	# down
+	switch_link_start_port = switch_link.start_port
+	# up
+	switch_link_end_port = switch_link.end_port
 
 	# 确定对应的osm链路
 	start_mid_osm_link = topo_object.link[str(start_rack_num)][mid_rack_num-1]
 	mid_end_osm_link = topo_object.link[str(mid_rack_num)][end_rack_num-1]
-	# 改变对应链路的状态
-	start_mid_osm_link.link_use = True
-	mid_end_osm_link.link_use = True
 
 	# 确定对应的osm端口
+	# 并确定相应的wss与osm连接的端口是否有相应的可用slot
 	# start mid
 	start_mid_osm_start_port = start_mid_osm_link.start_port
 	start_mid_osm_end_port = start_mid_osm_link.end_port
+	# 对应的wss的端口
+	if not start_rack_up_wss.check_osm_wss_port(start_mid_osm_start_port.physic_port.wss_port.port_num):
+		return "noStartOutPort"
+	if not mid_rack_down_wss.check_osm_wss_port(start_mid_osm_end_port.physic_port.wss_port.port_num):
+		return "noMidInPort"
 
 	# mid end
 	mid_end_osm_start_port = mid_end_osm_link.start_port
 	mid_end_osm_end_port = mid_end_osm_link.end_port
+	if not mid_rack_up_wss.check_osm_wss_port(mid_end_osm_start_port.physic_port.wss_port.port_num):
+		return "noMidOutPort"
+	if not end_rack_down_wss.check_osm_wss_port(mid_end_osm_end_port.physic_port.wss_port.port_num):
+		return "noEndInPort"
+
+	# 确定start rack的输入端口
+	start_up_wss_port_id = start_rack_up_wss.find_useable_port()
+	if not start_up_wss_port_id:
+		return "noStartInPort"
+	# 确定end rack的输出端口
+	end_down_wss_port_id = end_rack_down_wss.find_useable_port()
+	if not end_down_wss_port_id:
+		return "noEndOutPort"
+
+	# 确定slot
+	# no_use_slot包括mid中没有已经使用的slot和end rack中使用的slot
+	# mid rack的down wss的接入端口的slot字典
+	mid_down_wss_use_slot = start_mid_osm_end_port.physic_port.wss_port.slot_use
+	if not mid_down_wss_use_slot:
+		mid_down_wss_use_slot=[]
+	# mid rack的up wss的接入端口的slot字典
+	mid_up_wss_use_slot = mid_end_osm_start_port.physic_port.wss_port.slot_use
+	if not mid_up_wss_use_slot:
+		mid_up_wss_use_slot = []
+	# end rack的down wss的接入端口的slot字典
+	end_down_wss_use_slot = mid_end_osm_end_port.physic_port.wss_port.slot_use
+	if not end_down_wss_use_slot:
+		end_down_wss_use_slot = []
+
+	# 将三者的slot组合
+	use_slot = set(mid_down_wss_use_slot)
+	use_slot = use_slot.update(set(mid_up_wss_use_slot))
+	if not use_slot:
+		use_slot = set([])
+	else:
+		use_slot = use_slot.update(set(end_down_wss_use_slot))
+
+	# 检查是否有相同的波长 -- start_rack with mid_rack
+	# 检查是否有相同的波长 -- mid_rack with end_rack
+	no_use_slot = dict(zip([i for i in range(len(use_slot))], use_slot)) # 组合成字典传入，字典的键值无特殊意义
+	slot_plan = start_rack_up_wss.chose_slot(start_up_wss_port_id, start_mid_osm_start_port.physic_port.wss_port.port_num, no_use_slot)
+	if not slot_plan:
+		return "noSameSlot"
+	
+	# 改变对应链路的状态
+	start_mid_osm_link.link_use = True
+	mid_end_osm_link.link_use = True
+	# 确认相应的操作设置
+	start_rack.trans_using[str(trans.trans_num)] = trans
+	end_rack.recv_using[str(recv.recv_num)] = recv
 
 	# 操作对应的wss
 	# strat up wss
-	start_wss_out_port = start_mid_osm_start_port.physic_port.wss_port
-	start_wss_in_port = trans.trans_port
-	trans.to_rack = end_rack_num
-	start_rack_up_wss.set_connect(slot_plan, start_wss_in_port.port_num, start_wss_out_port.port_num)
+	start_rack_up_wss.set_connect(slot_plan, start_up_wss_port_id, start_mid_osm_start_port.physic_port.wss_port.port_num)
 
 	# mid down wss
-	mid_down_wss_in_port = start_mid_osm_end_port.physic_port.wss_port
-	mid_down_wss_out_port = switch_link.start_port
-	mid_rack_down_wss.set_connect(slot_plan, mid_down_wss_in_prot.port_num, mid_down_wss_out_port.port_num)
+	mid_rack_down_wss.set_connect(slot_plan, start_mid_osm_end_port.physic_port.wss_port.port_num, switch_link_start_port.port_num)
 
 	# mid up wss
-	mid_up_wss_out_port = mid_end_osm_start_port.physic_port.wss_port
-	mid_up_wss_in_port = switch_link.end_port
-	mid_rack_up_wss.set_connect(slot_plan, mid_up_wss_in_port.port_num, mid_up_wss_out_port.port_num)
+	mid_rack_up_wss.set_connect(slot_plan, switch_link_end_port.port_num, mid_end_osm_start_port.physic_port.wss_port.port_num)
 
 	# 改变swich link的状态
-	mid_rack.down_up_link_using[str(mid_down_wss_out_port.port_num)] = switch_link
+	mid_rack.down_up_link_using[str(switch_link_start_port.port_num)] = switch_link
 
 	# end down wss
-	end_wss_in_port = mid_end_osm_end_port.physic_port.wss_port
-	end_wss_out_port = recv.recv_port
-	recv.to_rack = start_rack_num
-	end_rack_down_wss.set_connect(slot_plan, end_wss_in_port.port_num, end_wss_out_port.port_num)
+	end_rack_down_wss.set_connect(slot_plan, mid_end_osm_end_port.physic_port.wss_port.port_num, end_down_wss_port_id)
 
 	# 更新osm中wss_link -- 带宽确认
 	# start_mid_osm_link
 	if not start_mid_osm_link.wss_link:
 		start_mid_osm_link.wss_link = {}
-	start_mid_osm_link.wss_link[f'{start_rack_num}_{mid_rack_num}_{end_rack_num}_{start_wss_in_port.port_num}_{start_wss_out_port.port_num}'] = 
-	start_rack_up_wss.optical_link[str(start_wss_in_port).port_num]
+	start_mid_osm_link.wss_link[f'{start_rack_num}_{mid_rack_num}_{end_rack_num}_{start_up_wss_port_id}_{start_mid_osm_start_port.physic_port.wss_port.port_num}_{slot_plan}'] =\
+	start_rack_up_wss.optical_link[f'{start_up_wss_port_id}_{start_mid_osm_start_port.physic_port.wss_port.port_num}_{slot_plan}']
 	# mid_end_osm_link
 	
 	# 记录整条链路的信息
@@ -124,55 +157,84 @@ def creat_rack_switch_link(topo_object, start_rack_num, end_rack_num, mid_rack_n
 	rack_switch_link.start_mid_osm_link = start_mid_osm_link
 	rack_switch_link.mid_end_osm_link = mid_end_osm_link
 
-	rack_switch_link.start_wss_link = start_rack_up_wss.optical_link[str(start_wss_in_port.port_num)]
-	rack_switch_link.mid_end_wss_link = mid_rack_down_wss.optical_link[str(mid_down_wss_out_port.port_num)]
-	rack_switch_link.mid_start_wss_link = mid_rack_up_wss.optical_link[str(mid_up_wss_in_port.port_num)]
-	rack_switch_link.end_wss_link = end_rack_down_wss.optical_link[str(end_wss_out_port.port_num)]
+	# start mid
+	rack_switch_link.start_wss_link = start_rack_up_wss.optical_link[f'{start_up_wss_port_id}_{start_mid_osm_start_port.physic_port.wss_port.port_num}_{slot_plan}']
+	rack_switch_link.mid_end_wss_link = mid_rack_down_wss.optical_link[f'{start_mid_osm_end_port.physic_port.wss_port.port_num}_{switch_link_start_port.port_num}_{slot_plan}']
+
+	# mid end
+	rack_switch_link.mid_start_wss_link = mid_rack_up_wss.optical_link[f'{switch_link_end_port.port_num}_{mid_end_osm_start_port.physic_port.wss_port.port_num}_{slot_plan}']
+	rack_switch_link.end_wss_link = end_rack_down_wss.optical_link[f'{mid_end_osm_end_port.physic_port.wss_port.port_num}_{end_down_wss_port_id}_{slot_plan}']
 
 	rack_switch_link.trans = trans
 	rack_switch_link.recv = recv
 	rack_switch_link.slot_plan = slot_plan
 
-	topo_object.rack_link[f'{start_rack_num}_{mid_rack_num}_{end_rack_num}_{start_wss_in_port.port_num}_{start_wss_out_port.port_num}'] = rack_switch_link
+	topo_object.rack_link[f'{start_rack_num}_{mid_rack_num}_{end_rack_num}_{start_up_wss_port_id}_{start_mid_osm_start_port.physic_port.wss_port.port_num}_{slot_plan}'] = rack_switch_link
 	return rack_switch_link
 
-
-def select_slot(start_rack_up_wss, mid_rack_down_wss, mid_rack_up_wss, end_rack_down_wss):
-	"""
-	确认新建链路的slot -- 波长
-	没有slot有两种情况:
-	1.接收端没有相应的波长
-	2.发送端没有相应的波长
-	notSlot -- 没有共同可用的波长
-	"""
-
-	# 得到wss内部可用的通道计划
-	start_avaliable_slot = start_rack_up_wss.check_useable_slot()
-	if not start_avaliable_slot:
-		return 'notStartWave'
-	mid_up_avaliable_slot = mid_rack_up_wss.check_useable_slot()
-	if not mid_up_avaliable_slot:
-		return 'notMidStartWave'
-	mid_down_avaliable_slot = mid_rack_down_wss.check_useable_slot()
-	if not mid_down_avaliable_slot:
-		return 'notMidEndWave'
-	end_avaliable_slot = end_rack_down_wss.check_useable_slot()
-	if not start_avaliable_slot:
-		return 'notEndWave'
-
-	# 选取规则 -- 每次选择最前面的4个slice
-	index = 0
-	while index <= len(start_avaliable_slot):
-		mid_slot = start_avaliable_slot[index:index+4]
-		if not mid_rack_down_wss.check_slot(mid_slot):
-			if not mid_rack_up_wss.check_slot(mid_slot):
-				if not end_rack_down_wss.check_slot(mid_slot):
-					return mid_slot
-		index += 4
-	return 'notSameSlot'
-
-
-def release_rack_switch_link(topo_object, start_rack_num, end_rack_num, up_wss_inport):
+def release_rack_switch_link(topo_object, rack_link_id):
 	"""
 	释放中转链路
+	rack_link_id: start_rack_num,mid_rack_num,end_rack_num, start_up_wss_port_num, start_up_wss_out_port_num
 	"""
+	# 确定对应的rack
+	# 对应start rack的
+	start_rack_num, mid_rack_num, end_rack_num, start_up_wss_in_port_id, start_up_wss_out_port_id, slot_plan = list(map(int, rack_link_id.split('_')))
+
+	topology = topo_object
+
+	# 确定相应的rack
+	start_rack = topo_object.racks[str(start_rack_num)]
+	mid_rack = topo_object.racks[str(mid_rack_num)]
+	end_rack = topo_object.racks[str(end_rack_num)]
+
+	# 确定对应的rack link
+	rack_link = topo_object.rack_link[rack_link_id]
+
+	# 确定对应的osm链路
+	start_mid_osm_link = topo_object.link[str(start_rack_num)][mid_rack_num-1]
+
+	# 确定对应的操作的wss
+	start_up_wss = start_rack.up_wss
+	mid_down_wss = mid_rack.down_wss
+	mid_up_wss = mid_rack.up_wss
+	end_down_wss = end_rack.down_wss
+
+	# 确定各个wss对应链路的端点
+	# start_up_wss -- 参数中已经给出
+	# mid_down_wss
+	mid_down_wss_link = rack_link.mid_end_wss_link
+	mid_down_wss_in_port_id = mid_down_wss_link.in_port.port_num
+	mid_down_wss_out_port_id = mid_down_wss_link.out_port.port_num
+
+	# mid_up_wss
+	mid_up_wss_link = rack_link.mid_start_wss_link
+	mid_up_wss_in_port_id = mid_up_wss_link.in_port.port_num
+	mid_up_wss_out_port_id = mid_up_wss_link.out_port.port_num
+	# end_down_wss
+	end_down_wss_link = rack_link.end_wss_link
+	end_down_wss_in_port_id = end_down_wss_link.in_port.port_num
+	end_down_wss_out_port_id = end_down_wss_link.out_port.port_num
+
+	# 确定收发机
+	trans = rack_link.trans
+	recv = rack_link.recv
+
+	# 更新一些结点和链路的信息
+	# 更新osm中记录的wss链路信息
+	del start_mid_osm_link.wss_link[rack_link_id]
+	# 确定osm链路中是否已空
+	if not start_mid_osm_link.wss_link:
+		start_mid_osm_link.link_use = False
+
+	# 更新收发机
+	del start_rack.trans_using[str(trans.trans_num)]
+	del end_rack.recv_using[str(recv.recv_num)]
+
+	# 删除各个wss 链路
+	start_up_wss.delete_connect(slot_plan, start_up_wss_in_port_id, start_up_wss_out_port_id)
+	mid_down_wss.delete_connect(slot_plan, mid_down_wss_in_port_id, mid_down_wss_out_port_id)
+	mid_up_wss.delete_connect(slot_plan, mid_up_wss_in_port_id, mid_up_wss_out_port_id)
+	end_down_wss.delete_connect(slot_plan, end_down_wss_in_port_id, end_down_wss_out_port_id)
+
+	del topo_object.rack_link[rack_link_id]

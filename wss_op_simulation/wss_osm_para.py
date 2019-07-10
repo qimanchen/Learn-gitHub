@@ -27,16 +27,16 @@ M=20, S=48
 
 # 上层的连接度
 # 参考范围 4 to 8
-DEGREE = 2
+DEGREE = 4
 
 # 每一台rack的收发机的数量
 # 参考范围 16 to 48
 # 限定每个端口的发射数量不能超过3个
-BVTNUM = 10
+BVTNUM = 16
 
 # 系统中rack的数量
 # 参考范围32 to 96
-RACKNUM = 5
+RACKNUM = 32
 
 # Wss的大小
 # 上行端口数

@@ -505,16 +505,24 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 								# start_rack
 								start_up_wss = racks[str(mid_rack_link.start_rack.rack_num)].up_wss
 								end_down_wss = racks[str(mid_rack_link.end_rack.rack_num)].down_wss
+
+								# 找出对应的与osm连接的wss端口
+								start_wss_link = mid_rack_link.start_wss_link
+								end_wss_link = mid_rack_link.end_wss_link
+
+								up_wss_out_port = start_wss_link.out_port
+								down_wss_in_port = end_wss_link.in_port
+
 								start_rack = racks[str(mid_rack_link.start_rack.rack_num)]
 								end_rack = racks[str(mid_rack_link.end_rack.rack_num)]
 								# 检测是否有bvt剩余
 								# start_rack
 								if start_rack.trans_list.keys() == start_rack.trans_using.keys():
 									blocking_type = "noTrans"
-								elif start_up_wss.slot_plan == start_up_wss.slot_plan_use:
+								elif list(up_wss_out_port.slot_use.values()) == up_wss_out_port.slot_plan:
 									blocking_type = "noStartSlot"
 								# end_rack
-								elif end_down_wss.slot_plan == end_down_wss.slot_plan_use:
+								elif list(down_wss_in_port.slot_use.values()) == down_wss_in_port.slot_plan:
 									blocking_type = "noEndSlot"
 								elif end_rack.recv_list.keys() == end_rack.recv_using.keys():
 									blocking_type = "noRecv"

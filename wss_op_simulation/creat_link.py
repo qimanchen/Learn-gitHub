@@ -49,8 +49,6 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 
 	# 确定两个rack之间osm链路
 	osm_link = topology.link[str(start_rack_num)][end_rack_num-1]
-	# 改变osm_link的状态
-	osm_link.link_use = True
 
 	# 对应的osm_link的输入和输出端口
 	start_rack_osm_port = osm_link.start_port
@@ -97,6 +95,8 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 		return "noSameSlot"
 
 	# 进行相应的设置
+	# 改变osm_link的状态
+	osm_link.link_use = True
 	# 确认相应的设备使用
 	# trans
 	start_rack.trans_using[str(trans.trans_num)] = trans
@@ -295,9 +295,6 @@ def release_rack_osm_wss_link(topo_object, rack_link_id):
 	if not osm_link.wss_link:
 		osm_link.link_use = False
 
-	# 删除rack_link中的记录
-	del topology.rack_link[rack_link_id]
-
 	del start_rack.trans_using[str(trans.trans_num)]
 	# recv
 	del end_rack.recv_using[str(recv.recv_num)]
@@ -311,4 +308,7 @@ def release_rack_osm_wss_link(topo_object, rack_link_id):
 
 	# 删除end_rack_down_wss 建路
 	end_rack_down_wss.delete_connect(slot_plan, down_wss_in_port.port_num, down_wss_out_port.port_num)
+
+	# 删除rack_link中的记录
+	del topology.rack_link[rack_link_id]
 

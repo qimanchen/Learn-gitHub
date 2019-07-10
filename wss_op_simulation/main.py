@@ -104,10 +104,10 @@ def main():
 
 	# 对应数据文件文件名格式
 	# rack_num,bvt_num,degree,slot,load
-	file_name = "data/test.txt"
-	# file_name = "data/{}_{}_{}_{}_{}.txt".format(RACKNUM, BVTNUM, DEGREE, WSSSLOT, ERLANG)
+	# file_name = "data/test.txt"
+	file_name = "data/{}_{}_{}_{}_{}.txt".format(RACKNUM, BVTNUM, DEGREE, WSSSLOT, ERLANG)
 	file = open(file_name, 'w')
-	file.write('all blocking\t\tno bandwidth blocking\t\tno slot blocking\t\tno cpu blocking\n')
+	file.write('all blocking\tno bandwidth blocking\tno slot blocking\tno cpu blocking\n')
 	print("Load: ", ERLANG)
 	# 整体测试的开始
 	while True:
@@ -140,9 +140,9 @@ def main():
 				print("*"*50)
 				print()
 				# 将数据读入文件中
-				file.write(str(blocking)+'\t\t'+str(no_bandwidth_num_blocking)+'\t\t'+
-					str(no_slot_num_blocking)+'\t\t'+ str(no_start_slot_blocking) + '\t\t' + str(no_end_slot_blocking) + '\t\t'+
-					str(no_trans_blocking)+'\t\t' + str(no_cpu_blocking)+'\t\t' + str(switch_wss) + '\n')
+				file.write(str(blocking)+'\t'+str(no_bandwidth_num_blocking)+'\t'+
+					str(no_slot_num_blocking)+'\t'+ str(no_start_slot_blocking) + '\t' + str(no_end_slot_blocking) + '\t'+
+					str(no_trans_blocking)+'\t' + str(no_cpu_blocking)+'\t' + str(switch_wss) + '\n')
 
 			if (all_test == 100000):
 				# 仿真数量的上限

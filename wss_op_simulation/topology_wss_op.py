@@ -467,7 +467,7 @@ class WSS(object):
 	def chose_slot(self, in_port_num, out_port_num, same_slot=None):
 		"""
 		same_slot: 已经被使用的slot列表
-		
+
 		确定对应：
 		up wss： 输出端口的slot
 		down wss： 输入端口的slot
@@ -484,7 +484,7 @@ class WSS(object):
 			out_port_slot_use = out_port.slot_use.values() # 输出端口使用了的slot
 		
 		for slot in self._slot_plan:
-			if same_slot and slot in same_slot:
+			if same_slot and slot in same_slot.values():
 				# 当slot被已经被使用的列表中时，直接跳过
 				continue
 			if not in_port_slot_use and not out_port_slot_use:
