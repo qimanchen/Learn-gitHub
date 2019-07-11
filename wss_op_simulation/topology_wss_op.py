@@ -51,7 +51,7 @@ class OSMPort(object):
 		self.port_status = port_status # 端口的可用状态 -- ENABLE, DISABLED
 		self.port_use = port_use # 端口是否已经使用, 'None'表示未使用
 		self.optical_port = optical_port # 端口的光连接，input -> output
-		self.physic_port = physic_port # 物理连接端口 指定wss的端口号
+		self.physic_port = physic_port # 物理连接端口 指定wss的端口号 -- RackPort对象
 
 	@property
 	def port_num(self):

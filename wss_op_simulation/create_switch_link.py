@@ -193,6 +193,7 @@ def release_rack_switch_link(topo_object, rack_link_id):
 
 	# 确定对应的osm链路
 	start_mid_osm_link = topo_object.link[str(start_rack_num)][mid_rack_num-1]
+	mid_end_osm_link = topo_object.link[str(mid_rack_num)][end_rack_num-1]
 
 	# 确定对应的操作的wss
 	start_up_wss = start_rack.up_wss
@@ -226,6 +227,8 @@ def release_rack_switch_link(topo_object, rack_link_id):
 	# 确定osm链路中是否已空
 	if not start_mid_osm_link.wss_link:
 		start_mid_osm_link.link_use = False
+	if not mid_end_osm_link.wss_link:
+		mid_end_osm_link.link_use = False
 
 	# 更新收发机
 	del start_rack.trans_using[str(trans.trans_num)]
