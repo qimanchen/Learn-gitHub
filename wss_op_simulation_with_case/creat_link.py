@@ -207,8 +207,6 @@ def release_resources(sub_path, vnode, topology):
 	rack_links = topology.rack_link
 
 	if racks[str(sub_path.first_rack)].mapping_sc:
-		print(sub_path.request_num)
-		raise ValueError("test")
 		del racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num]
 	sub_path = sub_path.next # 取得第一条链路
 

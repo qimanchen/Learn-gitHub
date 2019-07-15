@@ -104,7 +104,12 @@ def main():
 
 	# 链路映射成功的种类
 	pp.normal = 0 # 不通过任何case的数量
+	pp.case1 = 0
 	pp.case2 = 0 # 通过case2完成的链路的映射
+	pp.case3 = 0
+	pp.case4 = 0
+	# 通过复用之前的链路
+	pp.case_repeat = 0
 
 	# 对应数据文件文件名格式
 	# rack_num,bvt_num,degree,slot,load
@@ -142,7 +147,11 @@ def main():
 				print('no cpu blocking: ', no_cpu_blocking)
 				print('switch wss request: ', switch_wss)
 				print("not case normal: ", pp.normal)
+				print("case1 num: ", pp.case1)
 				print("case2 num: ", pp.case2)
+				print("case3 num: ", pp.case3)
+				print("case4 num: ", pp.case4)
+				print("case_repeat num: ", pp.case_repeat)
 				print("*"*50)
 				print()
 				# 将数据读入文件中

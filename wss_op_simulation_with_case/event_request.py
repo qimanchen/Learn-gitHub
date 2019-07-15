@@ -84,8 +84,16 @@ def event_handler(topology, h, pp):
 			# 更新物理网络的资源状态
 			if success_type == "normal":
 				pp.normal += 1
+			elif success_type == "case_repeat":
+				pp.case_repeat += 1
+			elif success_type == "case1":
+				pp.case1 += 1
 			elif success_type == "case2":
 				pp.case2 += 1
+			elif success_type == "case3":
+				pp.case3 += 1
+			elif success_type == "case4":
+				pp.case4 += 1
 			csub_path = sub_path
 			renew_resources(topology, csub_path, vnode)
 		else:

@@ -13,6 +13,8 @@ import copy
 from path_data_struct import OpticPath
 # 建立新的链路
 from creat_link import creat_rack_osm_wss_link
+# 建立bypass链路
+from create_switch_link import creat_rack_switch_link
 from topology_wss_op import RackLink
 from test import case1
 
@@ -610,6 +612,8 @@ def request_mapping(topology, event):
 	vnf_num = event.vnf_num # vnf的个数
 	request_num = event.request_id
 	rack_links = topology.rack_link
+	racks = topology.racks
+	links = topology.link
 	
 	fm = PP() # 存储整个已经映射的vnf -- 字典
 	fm.value = {} # {映射顺序：vnf_id}
@@ -636,6 +640,7 @@ def request_mapping(topology, event):
 	sub_path.request_num = event.request_id
 	sub_path.request_len = vnf_num
 	blocking_type = None # 阻塞
+	vnfList = list(vnode.keys()) # request中包含的网络功能
 	i = 0
 	while i < vnf_num:
 		# 开始寻找对应的链路
@@ -691,6 +696,180 @@ def request_mapping(topology, event):
 			# 建立相应的物理路径
 			chose_rack = chosed_node_list[i].pop(0)
 			rack_mapped.value[i] = chose_rack
+			# 检测是否使用usecase4
+			# sub_path -- 中存了
+			# sub_path.request_num = event.request_id
+			# sub_path.request_len = vnf_num
+			# (vnf_num, sorted_rack, sorted_vnf, sub_path) -- requestPath中存储的数据
+			# 取得相应的路径的第一个rack存储到对应rack中
+			# first_rack = rack_links[sub_path.next.rack_link].start_rack.rack_num
+			# # 取得相应的vnf顺序
+			# sorted_vnf = list(fm.value.values())
+			# sorted_rack = list(rack_mapped.value.values())
+			# sub_path.first_rack = first_rack
+			# topology.racks[str(first_rack)].mapping_sc[sub_path.request_num] = (vnf_num, sorted_rack, sorted_vnf, sub_path)
+			if topology.racks[str(chose_rack)].mapping_sc:
+				# 只有当存在着映射链路时才进行设置
+				for requestNum, requestPath in topology.racks[str(chose_rack)].mapping_sc.items():
+					if set(requestPath[2]) > set(vnfList) and (len(requestPath[2]) - len(vnfList)) == 1:
+						# 判断不同的结点是在链路的前面还是后面
+						# 取出不同的结点
+						diff_vnf = list(set(requestPath[2]) ^ set(vnfList))[0]
+						# 判断
+						diff_vnf_index = requestPath[2].index(diff_vnf)
+						if diff_vnf_index == 0:
+							# 前面，直接使用后面的链路 -- 如果资源足够
+							# 检测对应的资源是否足够
+							pre_sub_path = requestPath[3]
+							cpre_sub_path = pre_sub_path.next.next
+							check_state = True # 检测是否可用的状态
+							while cpre_sub_path:
+								mid_rack_link = rack_links[cpre_sub_path.rack_link]
+								start_vnf = cpre_sub_path.start_vnf
+								start_rack_num = mid_rack_link.start_rack.rack_num
+								wss_link_id = cpre_sub_path.rack_link
+								if not cpre_sub_path.next:
+									# 判断是路径尾部
+									# 判断资源是否满足再次的映射
+									end_vnf = cpre_sub_path.end_vnf
+									end_rack_num = mid_rack_link.end_rack.rack_num
+									if racks[str(start_rack_num)].avaliable_resource < vnode[start_vnf].computer_require:
+										check_state = False
+										break
+									if racks[str(end_rack_num)].avaliable_resource < vnode[end_vnf].computer_require:
+										check_state = False
+										break
+									if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable < vnode[start_vnf].bandwidth_require:
+										check_state = False
+										break
+								else:
+									# 不是路径尾部
+									# 判断资源是否满足再次的满足
+									if racks[str(start_rack_num)].avaliable_resource < vnode[start_vnf].computer_require:
+										check_state = False
+										break
+									if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable < vnode[start_vnf].bandwidth_require:
+										check_state = False
+										break
+								cpre_sub_path = cpre_sub_path.next
+							if check_state:
+								# 找到满足条件的
+								sub_path.first_rack = requestPath[2][1]
+								sub_path.next = requestPath[3].next.next
+								if not topology.racks[str(sub_path.first_rack)].mapping_sc:
+									topology.racks[str(sub_path.first_rack)].mapping_sc = {}
+								topology.racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num] = (requestPath[0]-1, requestPath[1][1:], requestPath[2][1:], sub_path)
+								return None, sub_path, sub_node_path,'case_repeat'
+						elif diff_vnf_index == len(requestPath[2])-1:
+							# 后面，直接使用前面的链路 -- 如果资源足够
+							pre_sub_path = requestPath[3]
+							cpre_sub_path = pre_sub_path.next
+							check_state = True # 检测是否可用的状态
+							while cpre_sub_path.next:
+								mid_rack_link = rack_links[cpre_sub_path.rack_link]
+								start_vnf = cpre_sub_path.start_vnf
+								start_rack_num = mid_rack_link.start_rack.rack_num
+								wss_link_id = cpre_sub_path.rack_link
+								if not cpre_sub_path.next.next:
+									# 判断是路径尾部
+									# 判断资源是否满足再次的映射
+									end_vnf = cpre_sub_path.end_vnf
+									end_rack_num = mid_rack_link.end_rack.rack_num
+									if racks[str(start_rack_num)].avaliable_resource < vnode[start_vnf].computer_require:
+										check_state = False
+										break
+									if racks[str(end_rack_num)].avaliable_resource < vnode[end_vnf].computer_require:
+										check_state = False
+										break
+									if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable < vnode[start_vnf].bandwidth_require:
+										check_state = False
+										break
+								else:
+									# 不是路径尾部
+									# 判断资源是否满足再次的满足
+									if racks[str(start_rack_num)].avaliable_resource < vnode[start_vnf].computer_require:
+										check_state = False
+										break
+									if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable < vnode[start_vnf].bandwidth_require:
+										check_state = False
+										break
+								cpre_sub_path = cpre_sub_path.next
+							if check_state:
+								sub_path.first_rack = requestPath[2][0]
+								csub_path = requestPath[3].next
+								# 去除最后一个结点和最后一条链路
+								while csub_path:
+									if not csub_path.next.next:
+										csub_path.next = None
+										break
+									csub_path = csub_path.next
+								sub_path.next = requestPath[3].next
+								if not topology.racks[str(sub_path.first_rack)].mapping_sc:
+									topology.racks[str(sub_path.first_rack)].mapping_sc = {}
+								topology.racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num] = (requestPath[0]-1, requestPath[1][:-1], requestPath[2][:-1], sub_path)
+								return None, sub_path, sub_node_path,'case_repeat'
+						else:
+							# 在链路的中间，建立新的bypass链路
+							pre_sub_path = requestPath[3]
+							cpre_sub_path = pre_sub_path.next
+							check_state = True # 检测是否可用的状态
+							# 判断状态是否可用
+							while cpre_sub_path:
+								mid_rack_link = rack_links[cpre_sub_path.rack_link]
+								start_vnf = cpre_sub_path.start_vnf
+								end_vnf = cpre_sub_path.end_vnf
+								start_rack_num = mid_rack_link.start_rack.rack_num
+								wss_link_id = cpre_sub_path.rack_link
+								if not cpre_sub_path.next:
+									# 判断链路的尾结点
+									end_rack_num = mid_rack_link.end_rack.rack_num
+									if start_vnf != diff_vnf and racks[str(start_rack_num)].avaliable_resource < vnode[start_vnf].computer_require:
+										check_state = False
+										break
+									if racks[str(end_rack_num)].avaliable_resource < vnode[end_vnf].computer_require:
+										check_state = False
+										break
+									if start_vnf != diff_vnf and rack_links[wss_link_id].start_wss_link.bandwidth_avaliable < vnode[start_vnf].bandwidth_require:
+										check_state = False
+										break
+								else:
+									# 不是尾节点
+									if start_vnf != diff_vnf and racks[str(start_rack_num)].avaliable_resource < vnode[start_vnf].computer_require:
+										check_state = False
+										break
+									if start_vnf != diff_vnf and end_vnf != diff_vnf and rack_links[wss_link_id].start_wss_link.bandwidth_avaliable < vnode[start_vnf].bandwidth_require:
+										check_state = False
+										break
+
+								cpre_sub_path = cpre_sub_path.next
+							if check_state:
+								# 找到符合条件的情况
+								sub_path.first_rack = requestPath[2][0]
+								mid_rack = requestPath[1][diff_vnf_index]
+								eend_rack = requestPath[1][diff_vnf_index+1]
+								rack_string = '_'.join(map(str,[sub_path.first_rack, mid_rack, eend_rack]))
+
+								# 判断对应的链路是否已经存在
+								wss_switch_link = links[str(sub_path.first_rack)][mid_rack-1].wss_switch_link
+								check_link_id = None
+								for wss_switch_link_id, wss_switch_link_object in wss_switch_link.items():
+									if list(wss_switch_link_id.split('_'))[:3] == list(rack_string.split('_')):
+										# 找到的链路不满足
+										if wss_switch_link_object.optical_link[wss_switch_link_id].bandwidth_avaliable < vnode[diff_vnf_index-1].bandwidth_require:
+											continue
+										else:
+											check_link_id = wss_switch_link_id
+								if check_link_id:
+									# 找到已存在的链路
+									# 直接使用
+
+								# 判断资源是否足够
+								else:
+									# 没有找到 -- 尝试建立新的链路
+									creat_rack_switch_link(topology, sub_path.first_rack, mid_rack, eend_rack)
+
+								csub_path = requestPath[3].next
+								pass
 			i += 1
 			
 		else:
