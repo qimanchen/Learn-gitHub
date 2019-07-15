@@ -75,6 +75,15 @@ class ShortPath(object):
 	
 		# 链路编号 -- 第几条链路
 		self.id = path_id
+
+		# usecase4使用参数
+		# 映射请求的编号 -- 方便存储整个请求
+		self.request_num = None
+		# 请求的长度
+		self.request_len = None
+		# 映射链路的第一个rack
+		self.first_rack = None
+
 		# 路径类型 -- 转接或正常类型
 		self.path_type = None
 		# 映射的vnf
@@ -599,6 +608,8 @@ def request_mapping(topology, event):
 	vnode = event.request # 请求结点列表
 	r_g_a = event.req_graph_ar # 请求关系矩阵
 	vnf_num = event.vnf_num # vnf的个数
+	request_num = event.request_id
+	rack_links = topology.rack_link
 	
 	fm = PP() # 存储整个已经映射的vnf -- 字典
 	fm.value = {} # {映射顺序：vnf_id}
@@ -622,6 +633,8 @@ def request_mapping(topology, event):
 	
 	sub_node_path = VNodePath(-1) # 映射结点路径
 	sub_path = ShortPath(-1) # 映射路径
+	sub_path.request_num = event.request_id
+	sub_path.request_len = vnf_num
 	blocking_type = None # 阻塞
 	i = 0
 	while i < vnf_num:
@@ -759,7 +772,7 @@ def request_mapping(topology, event):
 			while csub_path.next:
 				csub_path = csub_path.next
 			mid_path = ShortPath(i)
-			mid_path.rack_link = chose_rack
+			mid_path.rack_link = chose_rack[0]
 			mid_path.start_vnf = fm.value[i-1]
 			mid_path.end_vnf = fm.value[i]
 			csub_path.next = mid_path
@@ -769,4 +782,16 @@ def request_mapping(topology, event):
 		# 如果映射失败，返回到上一层检查是否有其他可选节点
 		# 如果所有的选择都进行到底了，则返回相应的映射失败的方案
 		# 如果整个映射完成，则返回对应的sub_path
+	# 取得相应的路径的第一个rack存储到对应rack中
+	first_rack = rack_links[sub_path.next.rack_link].start_rack.rack_num
+	# 取得相应的vnf顺序
+	sorted_vnf = list(fm.value.values())
+	sorted_rack = list(rack_mapped.value.values())
+	service_chain = '_'.join(map(str, sorted_vnf))
+	sub_path.first_rack = first_rack
+	# 对应的映射方案放入到rack内部
+	if not topology.racks[str(first_rack)].mapping_sc:
+		topology.racks[str(first_rack)].mapping_sc = {}
+	topology.racks[str(first_rack)].mapping_sc[sub_path.request_num] = (vnf_num, sorted_rack, sorted_vnf, sub_path)
+
 	return None, sub_path, sub_node_path, success_type

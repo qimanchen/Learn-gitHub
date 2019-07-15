@@ -108,7 +108,7 @@ def main():
 
 	# 对应数据文件文件名格式
 	# rack_num,bvt_num,degree,slot,load
-	file_name = "data/test.txt"
+	file_name = "data/test2.txt"
 	# file_name = "data/{}_{}_{}_{}_{}.txt".format(RACKNUM, BVTNUM, DEGREE, WSSSLOT, ERLANG)
 	file = open(file_name, 'w')
 	file.write('all blocking\tno bandwidth blocking\tno slot blocking\tno cpu blocking\n')

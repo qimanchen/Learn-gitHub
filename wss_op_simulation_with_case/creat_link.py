@@ -171,14 +171,15 @@ def renew_resources(topology, sub_path, vnode):
 
 	csub_path = sub_path
 	while csub_path:
-		mid_rack_link = csub_path.rack_link # 对应的物理链路
+		mid_rack_link_id = csub_path.rack_link # 对应的物理链路
+		mid_rack_link = rack_links[mid_rack_link_id]
 		start_vnf = csub_path.start_vnf
-		start_rack_num = mid_rack_link[1].start_rack.rack_num
-		wss_link_id = mid_rack_link[0]
+		start_rack_num = mid_rack_link.start_rack.rack_num
+		wss_link_id = mid_rack_link_id
 		if not csub_path.next:
 			# 检测是否是路径的结尾
 			end_vnf = csub_path.end_vnf
-			end_rack_num = mid_rack_link[1].end_rack.rack_num
+			end_rack_num = mid_rack_link.end_rack.rack_num
 			
 			# 更新物理资源
 			racks[str(start_rack_num)].avaliable_resource -= vnode[start_vnf].computer_require
@@ -204,18 +205,24 @@ def release_resources(sub_path, vnode, topology):
 		return
 	racks = topology.racks # 拓扑文件中的
 	rack_links = topology.rack_link
+
+	if racks[str(sub_path.first_rack)].mapping_sc:
+		print(sub_path.request_num)
+		raise ValueError("test")
+		del racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num]
 	sub_path = sub_path.next # 取得第一条链路
 
 	csub_path = sub_path
 	while csub_path:
-		mid_rack_link = csub_path.rack_link # 对应的物理链路
+		mid_rack_link_id = csub_path.rack_link # 对应的物理链路
+		mid_rack_link = rack_links[mid_rack_link_id]
 		start_vnf = csub_path.start_vnf
-		start_rack_num = mid_rack_link[1].start_rack.rack_num
-		wss_link_id = mid_rack_link[0]
+		start_rack_num = mid_rack_link.start_rack.rack_num
+		wss_link_id = mid_rack_link_id
 		if not csub_path.next:
 			# 检测是否是路径的结尾
 			end_vnf = csub_path.end_vnf
-			end_rack_num = mid_rack_link[1].end_rack.rack_num
+			end_rack_num = mid_rack_link.end_rack.rack_num
 			# 更新物理资源
 			racks[str(start_rack_num)].avaliable_resource += vnode[start_vnf].computer_require
 			# mid_rack_link.start_rack.avaliable_resource += vnode[start_vnf].computer_require
@@ -237,10 +244,11 @@ def release_resources(sub_path, vnode, topology):
 
 	csub_path = sub_path
 	while csub_path:
-		mid_rack_link = csub_path.rack_link
-		start_rack_num = mid_rack_link[1].start_rack.rack_num
-		end_rack_num = mid_rack_link[1].end_rack.rack_num
-		wss_link_id = mid_rack_link[0]
+		mid_rack_link_id = csub_path.rack_link
+		mid_rack_link = rack_links[mid_rack_link_id]
+		start_rack_num = mid_rack_link.start_rack.rack_num
+		end_rack_num = mid_rack_link.end_rack.rack_num
+		wss_link_id = mid_rack_link_id
 		if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable == rack_links[wss_link_id].start_wss_link.bandwidth and racks[str(start_rack_num)].avaliable_resource == racks[str(start_rack_num)].computer_resource and racks[str(end_rack_num)].avaliable_resource == racks[str(end_rack_num)].computer_resource:
 			release_rack_osm_wss_link(topology, wss_link_id)
 		csub_path = csub_path.next
