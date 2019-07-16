@@ -11,6 +11,7 @@
 from topology_wss_op import RackLink
 from global_params import INIT_BANDWIDTH
 from global_params import INIT_COMPUTER_RESOURCE
+from create_switch_link import release_rack_switch_link
 
 
 def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
@@ -167,9 +168,8 @@ def renew_resources(topology, sub_path, vnode):
 	"""
 	racks = topology.racks # 拓扑文件中的
 	rack_links = topology.rack_link
-	sub_path = sub_path.next # 取得第一条链路
 
-	csub_path = sub_path
+	csub_path = sub_path.next
 	while csub_path:
 		mid_rack_link_id = csub_path.rack_link # 对应的物理链路
 		mid_rack_link = rack_links[mid_rack_link_id]
@@ -208,9 +208,8 @@ def release_resources(sub_path, vnode, topology):
 
 	if racks[str(sub_path.first_rack)].mapping_sc:
 		del racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num]
-	sub_path = sub_path.next # 取得第一条链路
 
-	csub_path = sub_path
+	csub_path = sub_path.next
 	while csub_path:
 		mid_rack_link_id = csub_path.rack_link # 对应的物理链路
 		mid_rack_link = rack_links[mid_rack_link_id]
@@ -240,7 +239,7 @@ def release_resources(sub_path, vnode, topology):
 			# mid_rack_link.start_wss_link.bandwidth_avaliable += vnode[start_vnf].bandwidth_require
 		csub_path = csub_path.next
 
-	csub_path = sub_path
+	csub_path = sub_path.next
 	while csub_path:
 		mid_rack_link_id = csub_path.rack_link
 		mid_rack_link = rack_links[mid_rack_link_id]
@@ -248,7 +247,10 @@ def release_resources(sub_path, vnode, topology):
 		end_rack_num = mid_rack_link.end_rack.rack_num
 		wss_link_id = mid_rack_link_id
 		if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable == rack_links[wss_link_id].start_wss_link.bandwidth and racks[str(start_rack_num)].avaliable_resource == racks[str(start_rack_num)].computer_resource and racks[str(end_rack_num)].avaliable_resource == racks[str(end_rack_num)].computer_resource:
-			release_rack_osm_wss_link(topology, wss_link_id)
+			if csub_path.path_type == 'normal':
+				release_rack_osm_wss_link(topology, wss_link_id)
+			if csub_path.path_type == 'bypass':
+				release_rack_switch_link(topology, wss_link_id)
 		csub_path = csub_path.next
 
 def release_rack_osm_wss_link(topo_object, rack_link_id):

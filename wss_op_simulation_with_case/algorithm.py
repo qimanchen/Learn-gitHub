@@ -16,7 +16,7 @@ from creat_link import creat_rack_osm_wss_link
 # 建立bypass链路
 from create_switch_link import creat_rack_switch_link
 from topology_wss_op import RackLink
-from test import case1
+from modify_osm_link import change_osm_link
 
 
 class PP(object):
@@ -591,8 +591,164 @@ def get_next_vnf(r_g_a, vnf_id, check_vnf):
 				next_vnfs.extend(fo_level)
 				
 	return next_vnfs
-		
 
+def case3(topology, pre_rack, vnode, fm, rack_mapped, on):
+	"""
+	链路usecase3
+
+	当找不到最后一条链路时，且对应的usecase2
+	不可用时，建立bypass路径
+	"""
+
+	# 清除之前的vnf和rack
+	if on in fm.value:
+		del fm.value[on]
+	if on in rack_mapped.value:
+		del rack_mapped.value[on]
+
+	# 找到还未映射的vnf
+	vnfs = list(vnode.keys())
+	mapped_vnfs = list(fm.value.values())
+	chose_vnf = None # 将要操作的对象
+	for vnf in vnfs:
+		if vnf not in mapped_vnfs:
+			chose_vnf = vnf
+			break
+
+	# 取得对应的物理参数
+	index_rack = topology.index_link # 各个rack的连接矩阵
+	racks = topology.racks
+
+	# 确定pre_rack连接的rack
+	avaliable_racks = [] # mid rack集合
+	used_racks = list(rack_mapped.value.values()) # 前面已经使用的rack不可再次使用
+	for rack in index_rack[pre_rack-1]:
+		if rack not in used_racks:
+			avaliable_racks.append(rack)
+	if not avaliable_racks:
+		return False, None
+
+	# 确定对应的end rack
+	end_racks = {rack:[] for rack in avaliable_racks}
+
+	for rack in avaliable_racks:
+		for in_rack in index_rack[rack-1]:
+			if in_rack not in used_racks:
+				end_racks[rack].append(in_rack)
+
+	# 最后一个vnf需要的计算资源
+	require_cpu = vnode[chose_vnf].computer_require
+	for mid_rack, rack in end_racks.items():
+		for in_rack in rack:
+			if racks[str(in_rack)].avaliable_resource >= require_cpu:
+				rack_link = creat_rack_switch_link(topology, pre_rack, mid_rack, in_rack)
+				if not isinstance(rack_link, str):
+					# 创建成功相应的链路
+					fm.value[on] = chose_vnf
+					# 确定rack link的相关id参数
+					start_wss_in_port = rack_link.start_wss_link.in_port.port_num
+					start_wss_out_port = rack_link.start_wss_link.in_port.port_num
+					start_wss_slot_plan = rack_link.slot_plan
+					return True, f'{pre_rack}_{mid_rack}_{in_rack}_{start_wss_in_port}_{start_wss_out_port}_{start_wss_slot_plan}'
+	else:
+		return False, None
+
+def case1(topology, pre_rack, vnode, fm, rack_mapped, on):
+	"""
+	case1 执行
+	切换osm的连接
+	"""
+	# 清除之前的vnf和rack
+	if on in fm.value:
+		del fm.value[on]
+	if on in rack_mapped.value:
+		del rack_mapped.value[on]
+
+	# 找到还未映射的vnf
+	vnfs = list(vnode.keys())
+	mapped_vnfs = list(fm.value.values())
+	chose_vnf = None # 将要操作的对象
+	for vnf in vnfs:
+		if vnf not in mapped_vnfs:
+			chose_vnf = vnf
+			break
+	# 最后一个vnf需要的计算资源
+	require_cpu = vnode[chose_vnf].computer_require
+
+	# 确定pre_rack连接的rack
+	avaliable_racks = [] # mid rack集合
+	used_racks = list(rack_mapped.value.values()) # 前面已经使用的rack不可再次使用
+	for rack in topology.index_link[pre_rack-1]:
+		if rack not in used_racks:
+			avaliable_racks.append(rack)
+
+	for rack in avaliable_racks:
+		# 取得新的rack
+		new_end_rack = change_osm_link(topology, pre_rack, rack, used_racks, require_cpu)
+		if not isinstance(new_end_rack, str):
+			# 直接创建一条新的链路返回
+			rack_link = creat_rack_osm_wss_link(topology, pre_rack, rack)
+			if isinstance(rack_link, type(RackLink)):
+				# 找到对应的新链返回
+				fm.value[on] = chose_vnf
+				upwssinport = rack_link.start_wss_link.in_port.port_num
+				upwssoutport = rack_link.start_wss_link.out_port.port_num
+				slotplan = rack_link.slot_plan
+				return True, f'{pre_rack}_{rack}_{upwssinport}_{upwssoutport}_{slotplan}'
+	else:
+		return False, None
+
+def case2(topology, pre_rack, vnode, fm, rack_mapped, on):
+	"""
+	执行case1
+	切换对应的wss的链接
+	"""
+	# 找到还没有映射的vnf
+	# 清除之前未映射成功的vnf和相应的rack
+	if on in fm.value:
+		del fm.value[on]
+	if on in rack_mapped.value:
+		del rack_mapped.value[on]
+
+	vnfs = list(vnode.keys())
+	mapped_vnfs = list(fm.value.values()) # 已经映射的vnf
+	chose_vnf = None # 确定对应的vnf的对象
+	for vnf in vnfs:
+		if vnf not in mapped_vnfs:
+			chose_vnf = vnf
+			break
+	index_rack = topology.index_link # 各个rack连接矩阵
+	racks = topology.racks # 对应的rack
+	# 确定pre_rack连接的rack
+	avaliable_racks = []
+	used_racks = list(rack_mapped.value.values()) # 前面几个vnf已经使用了的rack -- 不可再次使用
+	for rack in index_rack[pre_rack-1]:
+		if rack not in used_racks:
+			avaliable_racks.append(rack)
+	if not avaliable_racks:
+		# 没有可用的rack
+		return False, None
+
+	# 最后一个vnf对象
+	require_cpu = vnode[chose_vnf].computer_require
+	# 测试
+	for rack in avaliable_racks:
+		if racks[str(rack)].avaliable_resource >= require_cpu:
+			rack_link = creat_rack_osm_wss_link(topology, pre_rack, rack)
+			if isinstance(rack_link, type(RackLink)):
+				# 找到了合适的链路，返回链路对象
+				# 对应链路的参数
+				fm.value[on] = chose_vnf
+				startrack = rack_link.start_rack.rack_num
+				endrack = rack_link.end_rack.rack_num
+				upwssinport = rack_link.start_wss_link.in_port.port_num
+				upwssoutport = rack_link.start_wss_link.out_port.port_num
+				slotplan = rack_link.slot_plan
+				return True, f'{startrack}_{endrack}_{upwssinport}_{upwssoutport}_{slotplan}'
+	else:
+		return False, None
+
+	
 def request_mapping(topology, event):
 	"""
 	请求处理模块
@@ -636,9 +792,12 @@ def request_mapping(topology, event):
 	max_mat = create_max_array(topology, vnode, vnf_num) # 最大带宽矩阵
 	
 	sub_node_path = VNodePath(-1) # 映射结点路径
-	sub_path = ShortPath(-1) # 映射路径
+	sub_path = ShortPath(0) # 映射路径
+	# 从0开始 -- 当i为0时，不用映射链路
 	sub_path.request_num = event.request_id
+
 	sub_path.request_len = vnf_num
+	sub_path.path_type = 'normal'
 	blocking_type = None # 阻塞
 	vnfList = list(vnode.keys()) # request中包含的网络功能
 	i = 0
@@ -713,6 +872,9 @@ def request_mapping(topology, event):
 				for requestNum, requestPath in topology.racks[str(chose_rack)].mapping_sc.items():
 					if set(requestPath[2]) > set(vnfList) and (len(requestPath[2]) - len(vnfList)) == 1:
 						# 判断不同的结点是在链路的前面还是后面
+						# 判断已经存在着对应着bypass的路径不允许再次bypass
+						if requestPath[3].path_type == "bypass":
+							continue
 						# 取出不同的结点
 						diff_vnf = list(set(requestPath[2]) ^ set(vnfList))[0]
 						# 判断
@@ -745,6 +907,7 @@ def request_mapping(topology, event):
 								else:
 									# 不是路径尾部
 									# 判断资源是否满足再次的满足
+									# 测试
 									if racks[str(start_rack_num)].avaliable_resource < vnode[start_vnf].computer_require:
 										check_state = False
 										break
@@ -796,14 +959,19 @@ def request_mapping(topology, event):
 								cpre_sub_path = cpre_sub_path.next
 							if check_state:
 								sub_path.first_rack = requestPath[2][0]
-								csub_path = requestPath[3].next
+								csub_path = sub_path
+								# 防止修改元数据
+								crequest_path = copy.deepcopy(requestPath[3].next)
 								# 去除最后一个结点和最后一条链路
-								while csub_path:
-									if not csub_path.next.next:
-										csub_path.next = None
-										break
+								while crequest_path.next:
+									mid_crequest_path = crequest_path.next
+									crequest_path.next = None
+									csub_path.next = crequest_path
 									csub_path = csub_path.next
-								sub_path.next = requestPath[3].next
+									crequest_path = mid_crequest_path
+									if not crequest_path.next:
+										# 排除最后一条链路
+										break
 								if not topology.racks[str(sub_path.first_rack)].mapping_sc:
 									topology.racks[str(sub_path.first_rack)].mapping_sc = {}
 								topology.racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num] = (requestPath[0]-1, requestPath[1][:-1], requestPath[2][:-1], sub_path)
@@ -845,31 +1013,104 @@ def request_mapping(topology, event):
 							if check_state:
 								# 找到符合条件的情况
 								sub_path.first_rack = requestPath[2][0]
+								sub_path.path_type = 'bypass'
+								sstart_rack = requestPath[1][diff_vnf_index-1]
 								mid_rack = requestPath[1][diff_vnf_index]
 								eend_rack = requestPath[1][diff_vnf_index+1]
 								rack_string = '_'.join(map(str,[sub_path.first_rack, mid_rack, eend_rack]))
 
 								# 判断对应的链路是否已经存在
-								wss_switch_link = links[str(sub_path.first_rack)][mid_rack-1].wss_switch_link
+								wss_switch_link = links[str(sstart_rack)][mid_rack-1].wss_switch_link
 								check_link_id = None
-								for wss_switch_link_id, wss_switch_link_object in wss_switch_link.items():
-									if list(wss_switch_link_id.split('_'))[:3] == list(rack_string.split('_')):
-										# 找到的链路不满足
-										if wss_switch_link_object.optical_link[wss_switch_link_id].bandwidth_avaliable < vnode[diff_vnf_index-1].bandwidth_require:
-											continue
-										else:
-											check_link_id = wss_switch_link_id
+								if wss_switch_link:
+									# 当这样的链路存在时
+									for wss_switch_link_id, wss_switch_link_object in wss_switch_link.items():
+										if list(wss_switch_link_id.split('_'))[:3] == list(rack_string.split('_')):
+											# 找到的链路不满足
+											if wss_switch_link_object.optical_link[wss_switch_link_id].bandwidth_avaliable < vnode[diff_vnf_index-1].bandwidth_require:
+												continue
+											else:
+												check_link_id = wss_switch_link_id
 								if check_link_id:
 									# 找到已存在的链路
 									# 直接使用
+									# mid_path.rack_link = chose_rack[0]
+									# mid_path.start_vnf = fm.value[i-1]
+									# mid_path.path_type = "normal"
+									# mid_path.end_vnf = fm.value[i]
+									csub_path = sub_path
+									cpre_sub_path = copy.deepcopy(requestPath[3].next)
+
+									while cpre_sub_path:
+										start_rack = rack_links[cpre_sub_path.rack_link].start_rack.rack_num
+										end_rack = rack_links[cpre_sub_path.rack_link].end_rack.rack_num
+										if start_rack != mid_rack and end_rack != mid_rack:
+											# 防止修改以后元数据丢失
+											mid_cpre_sub_path = cpre_sub_path.next
+											cpre_sub_path.next = None
+											csub_path.next = cpre_sub_path
+											csub_path = csub_path.next
+											cpre_sub_path = mid_cpre_sub_path
+											continue
+										elif end_rack==mid_rack:
+											mid_path = ShortPath(10)
+											mid_path.rack_link = check_link_id
+											mid_path.start_vnf = cpre_sub_path.start_vnf
+											mid_path.end_vnf = cpre_sub_path.next.end_vnf
+											mid_path.path_type = "bypass"
+											csub_path.next = mid_path
+											csub_path = csub_path.next
+											# 直接跳过中间的链路
+											cpre_sub_path = cpre_sub_path.next.next
+									if not topology.racks[str(sub_path.first_rack)].mapping_sc:
+										topology.racks[str(sub_path.first_rack)].mapping_sc = {}
+									mapped_rack = requestPath[1][:diff_vnf_index] + requestPath[1][diff_vnf_index+1:]
+									mapped_vnf = requestPath[2][:diff_vnf_index] + requestPath[2][diff_vnf+1:]
+									topology.racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num] = (requestPath[0]-1, mapped_rack, mapped_vnf, sub_path)
+									return None, sub_path, sub_node_path,'case4'
 
 								# 判断资源是否足够
 								else:
 									# 没有找到 -- 尝试建立新的链路
-									creat_rack_switch_link(topology, sub_path.first_rack, mid_rack, eend_rack)
+									new_switch_link = creat_rack_switch_link(topology, sstart_rack, mid_rack, eend_rack)
+									if not isinstance(new_switch_link, str):
+										# 成功找到链路
+										# 确定链路的id
+										start_wss_in_port = new_switch_link.start_wss_link.in_port.port_num
+										start_wss_out_port = new_switch_link.start_wss_link.out_port.port_num
+										start_wss_slot_plan = new_switch_link.slot_plan
+										new_switch_link_id = f'{sstart_rack}_{mid_rack}_{eend_rack}_{start_wss_in_port}_{start_wss_out_port}_{start_wss_slot_plan}'
+										# 将新建链路加入到path中
+										csub_path = sub_path
+										cpre_sub_path = copy.deepcopy(requestPath[3].next)
 
-								csub_path = requestPath[3].next
-								pass
+										while cpre_sub_path:
+											start_rack = rack_links[cpre_sub_path.rack_link].start_rack.rack_num
+											end_rack = rack_links[cpre_sub_path.rack_link].end_rack.rack_num
+											if start_rack != mid_rack and end_rack != mid_rack:
+												mid_cpre_sub_path = cpre_sub_path.next
+												cpre_sub_path.next = None
+												csub_path.next = cpre_sub_path
+												csub_path = csub_path.next
+												cpre_sub_path = mid_cpre_sub_path
+												continue
+											elif end_rack==mid_rack:
+												mid_path = ShortPath(10)
+												# 注意rack_link中存的是链路的id
+												mid_path.rack_link = new_switch_link_id
+												mid_path.start_vnf = cpre_sub_path.start_vnf
+												mid_path.end_vnf = cpre_sub_path.next.end_vnf
+												mid_path.path_type = "bypass"
+												csub_path.next = mid_path
+												csub_path = csub_path.next
+												# 直接跳过中间的链路
+												cpre_sub_path = cpre_sub_path.next.next
+										if not topology.racks[str(sub_path.first_rack)].mapping_sc:
+											topology.racks[str(sub_path.first_rack)].mapping_sc = {}
+										mapped_rack = requestPath[1][:diff_vnf_index] + requestPath[1][diff_vnf_index+1:]
+										mapped_vnf = requestPath[2][:diff_vnf_index] + requestPath[2][diff_vnf+1:]
+										topology.racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num] = (requestPath[0]-1, mapped_rack, mapped_vnf, sub_path)
+										return None, sub_path, sub_node_path,'case4'
 			i += 1
 			
 		else:
@@ -922,15 +1163,25 @@ def request_mapping(topology, event):
 						# case1
 						# 确定pre_rack
 						# 确定vnf
-						states, linked = case1(topology, pre_rack, vnode, fm, rack_mapped, i)
+						states, linked = case2(topology, pre_rack, vnode, fm, rack_mapped, i)
 						if states:
+							print("case2")
+							# 清除之前映射的结点
+							csub_path = sub_path
+							# 注意链路的映射是从1开始的
+							while csub_path.next and csub_path.id < i-1:
+								csub_path = csub_path.next
+							csub_path.next = None
+							# 将找到的新链路加入到sub_path中
 							csub_path = sub_path
 							while csub_path.next:
 								csub_path = csub_path.next
 							mid_path = ShortPath(i)
+							# 针对rack_link只传递相应的id，不传object -- 否则会导致memoryError
 							mid_path.rack_link = linked
 							mid_path.start_vnf = fm.value[i-1]
 							mid_path.end_vnf = fm.value[i]
+							mid_path.path_type = "normal"
 							csub_path.next = mid_path
 							success_type = "case2"
 							return None, sub_path, sub_node_path, success_type	
@@ -939,7 +1190,8 @@ def request_mapping(topology, event):
 					continue
 			# 清除之前映射的结点
 			csub_path = sub_path
-			while csub_path.next and csub_path.id < i:
+			# 注意链路的映射是从1开始的
+			while csub_path.next and csub_path.id < i-1:
 				csub_path = csub_path.next
 			csub_path.next = None
 			# 处理当前映射
@@ -953,6 +1205,7 @@ def request_mapping(topology, event):
 			mid_path = ShortPath(i)
 			mid_path.rack_link = chose_rack[0]
 			mid_path.start_vnf = fm.value[i-1]
+			mid_path.path_type = "normal"
 			mid_path.end_vnf = fm.value[i]
 			csub_path.next = mid_path
 			i += 1

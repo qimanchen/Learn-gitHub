@@ -39,58 +39,55 @@ if __name__ == "__main__":
 	print(topology.rack_link)
 
 
-def case1(topology, pre_rack, vnode, fm, rack_mapped, on):
-	"""
-	执行case1
-	切换对应的wss的链接
-	"""
-	# 找到还没有映射的vnf
-	# 清除之前未映射成功的vnf和相应的rack
-	if on in fm.value:
-		del fm.value[on]
-	if on in rack_mapped.value:
-		del rack_mapped.value[on]
+# def case2(topology, pre_rack, vnode, fm, rack_mapped, on):
+# 	"""
+# 	执行case1
+# 	切换对应的wss的链接
+# 	"""
+# 	# 找到还没有映射的vnf
+# 	# 清除之前未映射成功的vnf和相应的rack
+# 	if on in fm.value:
+# 		del fm.value[on]
+# 	if on in rack_mapped.value:
+# 		del rack_mapped.value[on]
 
-	vnfs = list(vnode.keys())
-	mapped_vnfs = list(fm.value.values()) # 已经映射的vnf
-	chose_vnf = None # 确定对应的vnf的对象
-	for vnf in vnfs:
-		if vnf not in mapped_vnfs:
-			chose_vnf = vnf
-			break
-	index_rack = topology.index_link # 各个rack连接矩阵
-	racks = topology.racks # 对应的rack
-	# 确定pre_rack连接的rack
-	avaliable_racks = []
-	used_racks = list(rack_mapped.value.values()) # 前面几个vnf已经使用了的rack -- 不可再次使用
-	for rack in index_rack[pre_rack-1]:
-		if rack not in used_racks:
-			avaliable_racks.append(rack)
-	if not avaliable_racks:
-		# 没有可用的rack
-		return False, None
+# 	vnfs = list(vnode.keys())
+# 	mapped_vnfs = list(fm.value.values()) # 已经映射的vnf
+# 	chose_vnf = None # 确定对应的vnf的对象
+# 	for vnf in vnfs:
+# 		if vnf not in mapped_vnfs:
+# 			chose_vnf = vnf
+# 			break
+# 	index_rack = topology.index_link # 各个rack连接矩阵
+# 	racks = topology.racks # 对应的rack
+# 	# 确定pre_rack连接的rack
+# 	avaliable_racks = []
+# 	used_racks = list(rack_mapped.value.values()) # 前面几个vnf已经使用了的rack -- 不可再次使用
+# 	for rack in index_rack[pre_rack-1]:
+# 		if rack not in used_racks:
+# 			avaliable_racks.append(rack)
+# 	if not avaliable_racks:
+# 		# 没有可用的rack
+# 		return False, None
 
-	# 最后一个vnf对象
-	require_cpu = vnode[chose_vnf].computer_require
-	# 测试
-	for rack in avaliable_racks:
-		if racks[str(rack)].avaliable_resource >= require_cpu:
-			rack_link = creat_rack_osm_wss_link(topology, pre_rack, rack)
-			if isinstance(rack_link, type(RackLink)):
-				# 找到了合适的链路，返回链路对象
-				# 对应链路的参数
-				fm.value[on] = chose_vnf
-				startrack = rack_link.start_rack.rack_num
-				endrack = rack_link.end_rack.rack_num
-				upwssinport = rack_link.start_wss_link.in_port.port_num
-				upwssoutport = rack_link.start_wss_link.out_port.port_num
-				slotplan = rack_link.slot_plan
-				return True, (f'{startrack}_{endrack}_{upwssinport}_{upwssoutport}_{slotplan}', rack_link)
-	else:
-		return False, None
-	# if isinstance(creat_state, type(RackLink)):
-	# 	pass
-		# 表示建路成功
+# 	# 最后一个vnf对象
+# 	require_cpu = vnode[chose_vnf].computer_require
+# 	# 测试
+# 	for rack in avaliable_racks:
+# 		if racks[str(rack)].avaliable_resource >= require_cpu:
+# 			rack_link = creat_rack_osm_wss_link(topology, pre_rack, rack)
+# 			if isinstance(rack_link, type(RackLink)):
+# 				# 找到了合适的链路，返回链路对象
+# 				# 对应链路的参数
+# 				fm.value[on] = chose_vnf
+# 				startrack = rack_link.start_rack.rack_num
+# 				endrack = rack_link.end_rack.rack_num
+# 				upwssinport = rack_link.start_wss_link.in_port.port_num
+# 				upwssoutport = rack_link.start_wss_link.out_port.port_num
+# 				slotplan = rack_link.slot_plan
+# 				return True, f'{startrack}_{endrack}_{upwssinport}_{upwssoutport}_{slotplan}'
+# 	else:
+# 		return False, None
 	
 
 

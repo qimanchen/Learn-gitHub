@@ -13,11 +13,12 @@
 """
 
 
-def change_osm_link(topology, start_rack_num, end_rack_num):
+def change_osm_link(topology, start_rack_num, end_rack_num, used_rack, require_cpu):
 	"""
 	变动osm某条链路
 	:param start_rack_num: 要修改链路的起始结点
 	:param end_rack_num: 要修改链路的终结点
+	:param used_rack: 前面链路已经在使用的rack -- 这些rack不能成为新的终点rack和新的输入rack
 	"""
 	# 需要变动的参数
 	osm = topology.osm
@@ -28,7 +29,8 @@ def change_osm_link(topology, start_rack_num, end_rack_num):
 
 	# 确定当前需要改变的链路是没有在使用的
 	if link[str(start_rack_num)][end_rack_num-1].link_use:
-		raise ValueError("链路仍然在使用，禁止修改")
+		# 链路还在使用中 -- 不可改变其链接
+		return 'linkUsing'
 
 	"""
 	变动osm连接的几步：
@@ -56,9 +58,15 @@ def change_osm_link(topology, start_rack_num, end_rack_num):
 			no_use_rack.update(set(index_link[rack]))
 	no_use_rack.update(set(start_rack_link_rack_list)) # 不能作为start rack的新的输入rack
 
+	# 加入已经使用过的rack
+	no_use_rack.update(set(used_rack))
+
 	no_use_rack.add(start_rack_num) # 去除start rack本身
 	no_use_input_rack.append(start_rack_num) # 去除start rack 本身
 	no_use_input_rack.append(end_rack_num) # 去除end rack 本身
+
+	no_use_input_rack.extend(used_rack)
+	no_use_input_rack = list(set(no_use_input_rack))
 
 	useable_new_end_rack = set(rack_list) ^ no_use_rack # 可用start rack输出的新rack
 	# 维护一个字典，保存每个新 end rack 原来的input rack
@@ -79,14 +87,18 @@ def change_osm_link(topology, start_rack_num, end_rack_num):
 	for end_rack, start_racks in dict_useable_new_end_rack.items():
 		for start_rack in start_racks:
 			if not link[str(start_rack)][end_rack-1].link_use:
-				new_end_rack = end_rack
-				new_start_rack = start_rack
-				break
+				# 找到一条可用的
+				# 判断对应的new_end_rack的计算资源是否满足
+				if topology.racks[str(new_end_rack)] >= require_cpu:
+					new_end_rack = end_rack
+					new_start_rack = start_rack
+					break
 		if new_end_rack:
 			break
 
 	if not new_end_rack:
-		raise ValueError("没有相应符合条件的结点")
+		# 没有合适的终结点
+		return "noNewEndRack"
 	# 确定需要操作的osm rack
 	origin_start_osm_link = link[str(start_rack_num)][end_rack_num-1]
 	origin_start_osm_link_start_port = origin_start_osm_link.start_port
@@ -116,3 +128,6 @@ def change_osm_link(topology, start_rack_num, end_rack_num):
 	# 并更新这个信息列表
 	topology.link = link
 	topology.index_link = index_link
+
+	# 返回对应rack找到的新的结点
+	return new_end_rack
