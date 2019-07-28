@@ -94,6 +94,7 @@ def event_handler(topology, h, pp):
 				pp.case3 += 1
 			elif success_type == "case4":
 				pp.case4 += 1
+			pp.success += 1
 			csub_path = sub_path
 			renew_resources(topology, csub_path, vnode)
 		else:

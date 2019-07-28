@@ -647,7 +647,7 @@ def case3(topology, pre_rack, vnode, fm, rack_mapped, on):
 					fm.value[on] = chose_vnf
 					# 确定rack link的相关id参数
 					start_wss_in_port = rack_link.start_wss_link.in_port.port_num
-					start_wss_out_port = rack_link.start_wss_link.in_port.port_num
+					start_wss_out_port = rack_link.start_wss_link.out_port.port_num
 					start_wss_slot_plan = rack_link.slot_plan
 					return True, f'{pre_rack}_{mid_rack}_{in_rack}_{start_wss_in_port}_{start_wss_out_port}_{start_wss_slot_plan}'
 	else:
@@ -687,14 +687,14 @@ def case1(topology, pre_rack, vnode, fm, rack_mapped, on):
 		new_end_rack = change_osm_link(topology, pre_rack, rack, used_racks, require_cpu)
 		if not isinstance(new_end_rack, str):
 			# 直接创建一条新的链路返回
-			rack_link = creat_rack_osm_wss_link(topology, pre_rack, rack)
+			rack_link = creat_rack_osm_wss_link(topology, pre_rack, new_end_rack)
 			if isinstance(rack_link, type(RackLink)):
 				# 找到对应的新链返回
 				fm.value[on] = chose_vnf
 				upwssinport = rack_link.start_wss_link.in_port.port_num
 				upwssoutport = rack_link.start_wss_link.out_port.port_num
 				slotplan = rack_link.slot_plan
-				return True, f'{pre_rack}_{rack}_{upwssinport}_{upwssoutport}_{slotplan}'
+				return True, f'{pre_rack}_{new_end_rack}_{upwssinport}_{upwssoutport}_{slotplan}'
 	else:
 		return False, None
 
@@ -1165,7 +1165,23 @@ def request_mapping(topology, event):
 						# 确定vnf
 						states, linked = case2(topology, pre_rack, vnode, fm, rack_mapped, i)
 						if states:
-							print("case2")
+							success_type = "case2"
+							mid_path_type = "normal"
+						else:
+							states, linked = case3(topology, pre_rack, vnode, fm, rack_mapped, i)
+							if states:
+								sub_path.path_type = "bypass"
+								success_type = "case3"
+								mid_path_type = "bypass"
+							else:
+								states, linked = case1(topology, pre_rack, vnode, fm, rack_mapped, i)
+								if states:
+									success_type = "case1"
+									mid_path_type = "normal"
+								else:
+									mid_path_type = None
+
+						if states:
 							# 清除之前映射的结点
 							csub_path = sub_path
 							# 注意链路的映射是从1开始的
@@ -1181,9 +1197,18 @@ def request_mapping(topology, event):
 							mid_path.rack_link = linked
 							mid_path.start_vnf = fm.value[i-1]
 							mid_path.end_vnf = fm.value[i]
-							mid_path.path_type = "normal"
+							mid_path.path_type = mid_path_type
 							csub_path.next = mid_path
-							success_type = "case2"
+
+							# 确认相应的存储参数
+							sub_path.first_rack = rack_links[sub_path.next.rack_link].start_rack.rack_num
+							rack_mapped.value[i] = rack_links[linked].end_rack.rack_num
+							sorted_vnf = list(fm.value.values())
+							sorted_rack = list(rack_mapped.value.values())
+							# 对应的映射方案放入到rack内部
+							if not topology.racks[str(sub_path.first_rack)].mapping_sc:
+								topology.racks[str(sub_path.first_rack)].mapping_sc = {}
+							topology.racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num] = (vnf_num, sorted_rack, sorted_vnf, sub_path)
 							return None, sub_path, sub_node_path, success_type	
 					chose_vnf_list[i] = None
 					i -= 1

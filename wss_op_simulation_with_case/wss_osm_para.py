@@ -32,7 +32,7 @@ DEGREE = 4
 # 每一台rack的收发机的数量
 # 参考范围 16 to 48
 # 限定每个端口的发射数量不能超过3个
-BVTNUM = 16
+BVTNUM = 24
 
 # 系统中rack的数量
 # 参考范围32 to 96
@@ -48,4 +48,4 @@ OSMSIZE = DEGREE * RACKNUM
 # wss中slot的数量
 # slot plan 设定为，每四个slot为一个整体
 # [1, 2, ... , 12]
-WSSSLOT = 48
+WSSSLOT = 16

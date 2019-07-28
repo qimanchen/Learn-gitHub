@@ -964,6 +964,7 @@ class Topology(object):
 		# {'start_rack_num'_'end_rack_num'_'osm_in_put'_'out_put': RackLink}
 		# 注意之里面存在着link type
 		self.rack_link = {} # 结构建RackLink
+		self.rack_switch_link = {} # 交换链路
 
 		# 拓扑文件名
 		self.topo_file = topo_file

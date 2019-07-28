@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-
+import os
 from logger import Logger
 logger = Logger(__name__).Logger
 
@@ -108,16 +108,24 @@ def main():
 	pp.case2 = 0 # 通过case2完成的链路的映射
 	pp.case3 = 0
 	pp.case4 = 0
+	pp.success = 0 # 请求映射成功
 	# 通过复用之前的链路
 	pp.case_repeat = 0
 
 	# 对应数据文件文件名格式
 	# rack_num,bvt_num,degree,slot,load
-	file_name = "data/test2.txt"
-	# file_name = "data/{}_{}_{}_{}_{}.txt".format(RACKNUM, BVTNUM, DEGREE, WSSSLOT, ERLANG)
+	# file_name = "data/test2.txt"
+	file_name = "data/{}_{}_{}_{}_{}.txt".format(RACKNUM, BVTNUM, DEGREE, WSSSLOT, ERLANG)
+	# 检测文件是否已经存在 -- 直接raise error
+	if os.path.exists(file_name):
+		raise FileNotFoundError("当前文件已经建立，禁止程序再次运行")
+	
 	file = open(file_name, 'w')
+	# 存取相应的设置参数
+	file.write(f'Load: {ERLANG}\tDgree: {DEGREE}\tBvtNum: {BVTNUM}\tRacknum: {RACKNUM}\tSlot: {WSSSLOT}')
 	file.write('all blocking\tno bandwidth blocking\tno slot blocking\tno cpu blocking\n')
-	print("Load: ", ERLANG)
+	# 输出测试基本参数
+	print(f'Load: {ERLANG}\tDgree: {DEGREE}\tBvtNum: {BVTNUM}\tRacknum: {RACKNUM}\tSlot: {WSSSLOT}')
 	# 整体测试的开始
 	while True:
 		if man_h.next.type == 1:
@@ -137,6 +145,14 @@ def main():
 
 				no_cpu_blocking = pp.no_cpu/pp.process_request # 没有计算资源而阻塞
 				switch_wss = pp.switch_wss/pp.process_request # 通过切换wss映射链的比率
+
+				# 请求处理成功占比
+				normal_rate = pp.normal/pp.success
+				case1_rate = pp.case1/pp.success
+				case2_rate = pp.case2/pp.success
+				case3_rate = pp.case3/pp.success
+				case4_rate = pp.case4/pp.success
+				case_repeat_rate = pp.case_repeat/pp.success
 				# 每 10000条请求输出一次结果
 				print("all blocking: ", blocking)
 				print("no bandwidth blocking: ", no_bandwidth_num_blocking)
@@ -146,6 +162,7 @@ def main():
 				print("no trans blocking: ", no_trans_blocking)
 				print('no cpu blocking: ', no_cpu_blocking)
 				print('switch wss request: ', switch_wss)
+				print("request mapping success: ", pp.success)
 				print("not case normal: ", pp.normal)
 				print("case1 num: ", pp.case1)
 				print("case2 num: ", pp.case2)
@@ -157,7 +174,9 @@ def main():
 				# 将数据读入文件中
 				file.write(str(blocking)+'\t'+str(no_bandwidth_num_blocking)+'\t'+
 					str(no_slot_num_blocking)+'\t'+ str(no_start_slot_blocking) + '\t' + str(no_end_slot_blocking) + '\t'+
-					str(no_trans_blocking)+'\t' + str(no_cpu_blocking)+'\t' + str(switch_wss) + '\n')
+					str(no_trans_blocking)+'\t' + str(no_cpu_blocking)+'\t' + str(switch_wss) + '\t' + str(normal_rate)+\
+					'\t'+ str(case1_rate) +'\t' + str(case2_rate) + '\t' + str(case3_rate) + '\t' + str(case4_rate) +\
+					'\t' + str(case_repeat_rate)+'\n')
 
 			if (all_test == 100000):
 				# 仿真数量的上限

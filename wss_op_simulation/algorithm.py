@@ -611,7 +611,7 @@ def request_mapping(topology, event):
 	max_mat = create_max_array(topology, vnode, vnf_num) # 最大带宽矩阵
 	
 	sub_node_path = VNodePath(-1) # 映射结点路径
-	sub_path = ShortPath(-1) # 映射路径
+	sub_path = ShortPath(0) # 映射路径
 	blocking_type = None # 阻塞
 	i = 0
 	while i < vnf_num:
@@ -719,7 +719,7 @@ def request_mapping(topology, event):
 					continue
 			# 清除之前映射的结点
 			csub_path = sub_path
-			while csub_path.next and csub_path.id < i:
+			while csub_path.next and csub_path.id < i-1:
 				csub_path = csub_path.next
 			csub_path.next = None
 			# 处理当前映射
