@@ -56,7 +56,7 @@ class SPath(object):
 		self.down = None
 
 
-def event_handler(topology, h, pp, case_states):
+def event_handler(topology, h, pp):
 	"""
 	pp = PP() # 仿真测试参数类
 	pp.fail_num = 0 # 失败请求数
@@ -79,7 +79,7 @@ def event_handler(topology, h, pp, case_states):
 		pp.process_request += 1
 		# 映射请求
 		# 对应的值分别是，阻塞类型(正常返回None), 对应的物理路径， 对应的结点和vnf链表
-		blocking_type, sub_path, sub_node_path, success_type = request_mapping(topology, h.next, case_states)
+		blocking_type, sub_path, sub_node_path, success_type = request_mapping(topology, h.next)
 
 		if not blocking_type:
 			# 请求处理成功

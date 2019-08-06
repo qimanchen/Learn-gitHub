@@ -19,6 +19,8 @@ from topology_wss_op import Topology
 from event_request import event_handler
 # 导入架构大小参数
 from wss_osm_para import RACKNUM, BVTNUM, DEGREE, WSSSLOT
+# 导入初始化wss连接文件
+from creat_link import creat_rack_osm_wss_link
 
 
 class Point(object):
@@ -48,10 +50,37 @@ def init_man_queue():
 	tmp.next = None
 	return tmp
 
+
+def set_wss_link(topology, rack_num=RACKNUM, degree=DEGREE, bvt_num=BVTNUM):
+	"""
+	提前设置wss得链路：
+	每个出端口平均分配端口
+	rackNum/Degree -- 两个rack之间的连接度平均分配
+
+	# 链路重设问题
+	# 1. slot分配
+	# 2. 原空闲下来的端口是否可以重新使用
+	"""
+	index_link = topology.index_link
+
+	# 每个端口可以建立的连接数
+	# 平均分配发射的数量
+	linkNums = bvt_num//degree
+
+	for start_rack, rack_link_list in enumerate(index_link):
+		for end_rack in rack_link_list:
+			for _ in range(linkNums):
+				# 每对rack之间建立degree对连接
+				rack_link = creat_rack_osm_wss_link(topology, start_rack+1, end_rack)
+				if isinstance(rack_link, str):
+					raise TypeError("程序建立wss初始连接出错")
+
+
 def main():
 
 	# 物理网络初始化
 	topology = Topology()
+	set_wss_link(topology)
 	# 请求初始化控制
 
 	# 请求中的vnf的数量
@@ -112,9 +141,6 @@ def main():
 	# 通过复用之前的链路
 	pp.case_repeat = 0
 
-	case_states = PP()
-	case_states.test = [[0 for i in range(6)] for i in range(4)]
-
 	# 对应数据文件文件名格式
 	# rack_num,bvt_num,degree,slot,load
 	# file_name = "data/test.txt"
@@ -172,7 +198,6 @@ def main():
 				print("case3 num: ", pp.case3)
 				print("case4 num: ", pp.case4)
 				print("case_repeat num: ", pp.case_repeat)
-				print(case_states.test)
 				print("*"*50)
 				print()
 				# 将数据读入文件中
@@ -181,11 +206,6 @@ def main():
 					str(no_trans_blocking)+'\t' + str(no_cpu_blocking)+'\t' + str(switch_wss) + '\t' + str(normal_rate)+\
 					'\t'+ str(case1_rate) +'\t' + str(case2_rate) + '\t' + str(case3_rate) + '\t' + str(case4_rate) +\
 					'\t' + str(case_repeat_rate)+'\n')
-				# 将对应case的统计情况写入
-				file.write('noStartPort, noEndPort, noTrans, noRecv, noSameSlot, noRacks'+'\t')
-				for caseNum in range(4):
-					file.write('_'.join(map(str, case_states.test[caseNum])) + '\t')
-				file.write('\n')
 
 			if (all_test == 100000):
 				# 仿真数量的上限
@@ -207,7 +227,7 @@ def main():
 					str(no_slot_num_blocking)+'\t\t' + str(no_cpu_blocking)+'\t\t'+str(switch_wss) + '\n')
 				break
 		# 开始处理请求
-		event_handler(topology, man_h, pp, case_states)
+		event_handler(topology, man_h, pp)
 
 	file.close()
 	print('*'*50, "测试完成", "*"*50)

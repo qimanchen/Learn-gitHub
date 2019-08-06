@@ -143,12 +143,12 @@ def create_max_array(topology, vnode, vnf_num):
 				# 检测到rack之间存在链路
 				if osm_link != "None":
 					# 检测到还没建立任何光路，建立初始链路
-					if osm_link.wss_link is None:
-						# 建立新的链路
-						creat_state = creat_rack_osm_wss_link(topology, in_rack, out_rack+1)
-						max_bandwidth = creat_state.start_wss_link.bandwidth_avaliable
-						# 直接跳过
-						continue
+					# if osm_link.wss_link is None:
+					# 	# 建立新的链路
+					# 	creat_state = creat_rack_osm_wss_link(topology, in_rack, out_rack+1)
+					# 	max_bandwidth = creat_state.start_wss_link.bandwidth_avaliable
+					# 	# 直接跳过
+					# 	continue
 						# 建路失败
 						# if not isinstance(creat_state, type(RackLink)):
 						# 	pass
@@ -169,11 +169,11 @@ def create_max_array(topology, vnode, vnf_num):
 					# 当所有的存在链路都不满足时，建立一条新的链路
 					# 无论与否都建立一条新的链路
 					# if count == 0:
-					creat_state = creat_rack_osm_wss_link(topology, in_rack, out_rack+1)
-					# 建路成功
-					if isinstance(creat_state, type(RackLink)):
-						# 直接等于最大带宽值
-						max_bandwidth = creat_state.start_wss_link.bandwidth_avaliable
+					# creat_state = creat_rack_osm_wss_link(topology, in_rack, out_rack+1)
+					# # 建路成功
+					# if isinstance(creat_state, type(RackLink)):
+					# 	# 直接等于最大带宽值
+					# 	max_bandwidth = creat_state.start_wss_link.bandwidth_avaliable
 			mid_max[j] = max_bandwidth
 		max_mat[in_rack-1] = mid_max
 	return max_mat
@@ -669,7 +669,7 @@ def case3(topology, pre_rack, vnode, fm, rack_mapped, on):
 		if rack not in used_racks:
 			avaliable_racks.append(rack)
 	if not avaliable_racks:
-		return False, None, 'noRacks'
+		return False, None
 
 	# 确定对应的end rack
 	end_racks = {rack:[] for rack in avaliable_racks}
@@ -681,7 +681,6 @@ def case3(topology, pre_rack, vnode, fm, rack_mapped, on):
 
 	# 最后一个vnf需要的计算资源
 	require_cpu = vnode[chose_vnf].computer_require
-	rack_link = 'noRacks'
 	for mid_rack, rack in end_racks.items():
 		for in_rack in rack:
 			if racks[str(in_rack)].avaliable_resource >= require_cpu:
@@ -693,9 +692,9 @@ def case3(topology, pre_rack, vnode, fm, rack_mapped, on):
 					start_wss_in_port = rack_link.start_wss_link.in_port.port_num
 					start_wss_out_port = rack_link.start_wss_link.out_port.port_num
 					start_wss_slot_plan = rack_link.slot_plan
-					return True, f'{pre_rack}_{mid_rack}_{in_rack}_{start_wss_in_port}_{start_wss_out_port}_{start_wss_slot_plan}', True
+					return True, f'{pre_rack}_{mid_rack}_{in_rack}_{start_wss_in_port}_{start_wss_out_port}_{start_wss_slot_plan}'
 	else:
-		return False, None, rack_link
+		return False, None
 
 def case1(topology, pre_rack, vnode, fm, rack_mapped, on):
 	"""
@@ -725,7 +724,7 @@ def case1(topology, pre_rack, vnode, fm, rack_mapped, on):
 	for rack in topology.index_link[pre_rack-1]:
 		if rack not in used_racks:
 			avaliable_racks.append(rack)
-	rack_link = 'noRacks'
+
 	for rack in avaliable_racks:
 		# 取得新的rack
 		new_end_rack = change_osm_link(topology, pre_rack, rack, used_racks, require_cpu)
@@ -738,9 +737,9 @@ def case1(topology, pre_rack, vnode, fm, rack_mapped, on):
 				upwssinport = rack_link.start_wss_link.in_port.port_num
 				upwssoutport = rack_link.start_wss_link.out_port.port_num
 				slotplan = rack_link.slot_plan
-				return True, f'{pre_rack}_{new_end_rack}_{upwssinport}_{upwssoutport}_{slotplan}', True
+				return True, f'{pre_rack}_{new_end_rack}_{upwssinport}_{upwssoutport}_{slotplan}'
 	else:
-		return False, None, rack_link
+		return False, None
 
 def case2(topology, pre_rack, vnode, fm, rack_mapped, on):
 	"""
@@ -769,15 +768,13 @@ def case2(topology, pre_rack, vnode, fm, rack_mapped, on):
 	for rack in index_rack[pre_rack-1]:
 		if rack not in used_racks:
 			avaliable_racks.append(rack)
-
 	if not avaliable_racks:
 		# 没有可用的rack
-		return False, None, 'noRacks'
+		return False, None
 
 	# 最后一个vnf对象
 	require_cpu = vnode[chose_vnf].computer_require
 	# 测试
-	rack_link = 'noRacks'
 	for rack in avaliable_racks:
 		if racks[str(rack)].avaliable_resource >= require_cpu:
 			rack_link = creat_rack_osm_wss_link(topology, pre_rack, rack)
@@ -790,36 +787,12 @@ def case2(topology, pre_rack, vnode, fm, rack_mapped, on):
 				upwssinport = rack_link.start_wss_link.in_port.port_num
 				upwssoutport = rack_link.start_wss_link.out_port.port_num
 				slotplan = rack_link.slot_plan
-				return True, f'{startrack}_{endrack}_{upwssinport}_{upwssoutport}_{slotplan}', True
+				return True, f'{startrack}_{endrack}_{upwssinport}_{upwssoutport}_{slotplan}'
 	else:
-		return False, None, rack_link
-
-def get_link_blocking_type(case_num, case, blocking_value):
-	"""
-	统计对应的case中阻塞的类型的次数
-	"""
-
-	if blocking_value == 'noStartOutPort' or blocking_value == 'noStartInPort':
-		case[case_num][0] += 1
-		# case.noStartPort+= 1
-	elif blocking_value == 'noEndInPort' or blocking_value == 'noEndOutPort':
-		case[case_num][1] += 1
-		# case.noEndPort += 1
-	elif blocking_value == 'notTrans':
-		case[case_num][2] += 1
-		# case.noTrans += 1
-	elif blocking_value == 'notRecv':
-		case[case_num][3] += 1
-		# case.noRecv += 1
-	elif blocking_value == 'noSameSlot':
-		case[case_num][4] += 1
-		# case.noSameSlot += 1
-	elif blocking_value == 'noRacks':
-		case[case_num][5] += 1
-	return case
+		return False, None
 
 	
-def request_mapping(topology, event, case_states):
+def request_mapping(topology, event):
 	"""
 	请求处理模块
 	请求映射成功类型
@@ -828,12 +801,7 @@ def request_mapping(topology, event, case_states):
 	3. case2 - case2
 	4. case3 - case3
 	5. case4 - case4
-	:param case_states: 统计case的情况
 	"""
-	# 创建统计case不可行原因数组
-	# case_test = [[0 for i in range(6)] for i in range(4)]
-	case_test = case_states.test
-
 	success_type = 'normal'
 	request_state = None # 请求的处理状态，True or False
 	loss_type = None # 请求映射失败的原因
@@ -942,7 +910,7 @@ def request_mapping(topology, event, case_states):
 			# sorted_rack = list(rack_mapped.value.values())
 			# sub_path.first_rack = first_rack
 			# topology.racks[str(first_rack)].mapping_sc[sub_path.request_num] = (vnf_num, sorted_rack, sorted_vnf, sub_path)
-			if topology.racks[str(chose_rack)].mapping_sc:
+			if topology.racks[str(chose_rack)].mapping_sc and False:
 				# 只有当存在着映射链路时才进行设置
 				for requestNum, requestPath in topology.racks[str(chose_rack)].mapping_sc.items():
 					if set(requestPath[2]) > set(vnfList) and (len(requestPath[2]) - len(vnfList)) == 1:
@@ -1186,8 +1154,6 @@ def request_mapping(topology, event, case_states):
 										mapped_vnf = requestPath[2][:diff_vnf_index] + requestPath[2][diff_vnf+1:]
 										topology.racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num] = (requestPath[0]-1, mapped_rack, mapped_vnf, sub_path)
 										return None, sub_path, sub_node_path,'case4'
-									else:
-										case_test = get_link_blocking_type(3, case_test, new_switch_link)
 			i += 1
 			
 		else:
@@ -1235,30 +1201,27 @@ def request_mapping(topology, event, case_states):
 					break
 				# 没有找到合适的物理结点
 				if isinstance(chose_node_list[i], str):
-					if i == vnf_num - 1:
+					if i == vnf_num - 1 and False:
 						# 如果是最后一条链路，采用case
 						# case1
 						# 确定pre_rack
 						# 确定vnf
-						states, linked, block_type = case2(topology, pre_rack, vnode, fm, rack_mapped, i)
+						states, linked = case2(topology, pre_rack, vnode, fm, rack_mapped, i)
 						if states:
 							success_type = "case2"
 							mid_path_type = "normal"
 						else:
-							case_test = get_link_blocking_type(1, case_test, block_type)
-							states, linked, block_type = case3(topology, pre_rack, vnode, fm, rack_mapped, i)
+							states, linked = case3(topology, pre_rack, vnode, fm, rack_mapped, i)
 							if states:
 								sub_path.path_type = "bypass"
 								success_type = "case3"
 								mid_path_type = "bypass"
 							else:
-								case_test = get_link_blocking_type(2, case_test, block_type)
-								states, linked, block_type = case1(topology, pre_rack, vnode, fm, rack_mapped, i)
+								states, linked = case1(topology, pre_rack, vnode, fm, rack_mapped, i)
 								if states:
 									success_type = "case1"
 									mid_path_type = "normal"
 								else:
-									case_test = get_link_blocking_type(0, case_test, block_type)
 									mid_path_type = None
 
 						if states:

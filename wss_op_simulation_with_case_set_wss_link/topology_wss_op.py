@@ -976,10 +976,6 @@ class Topology(object):
 		# osm内部的光链路初始化，以及取得整个链路表
 		self.topo_list = self.read_topo_file()
 
-	def set_wss_link():
-		"""
-		提前设置wss链路
-		"""
 
 	def get_link_rack_bandwidth_count(self, rack_num):
 		"""

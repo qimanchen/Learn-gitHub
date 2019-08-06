@@ -137,6 +137,7 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 
 def creat_rack_osm_wss_link_with_id(topo_object, start_rack_num, end_rack_num):
 	"""
+	用于first_fit算法建路
 	确认了start_rack和end_rack
 	发现已经建立的链路不可用
 	需要建立新的链路:
@@ -362,19 +363,19 @@ def release_resources(sub_path, vnode, topology):
 			# mid_rack_link.start_wss_link.bandwidth_avaliable += vnode[start_vnf].bandwidth_require
 		csub_path = csub_path.next
 
-	csub_path = sub_path.next
-	while csub_path:
-		mid_rack_link_id = csub_path.rack_link
-		mid_rack_link = rack_links[mid_rack_link_id]
-		start_rack_num = mid_rack_link.start_rack.rack_num
-		end_rack_num = mid_rack_link.end_rack.rack_num
-		wss_link_id = mid_rack_link_id
-		if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable == rack_links[wss_link_id].start_wss_link.bandwidth and racks[str(start_rack_num)].avaliable_resource == racks[str(start_rack_num)].computer_resource and racks[str(end_rack_num)].avaliable_resource == racks[str(end_rack_num)].computer_resource:
-			if csub_path.path_type == 'normal':
-				release_rack_osm_wss_link(topology, wss_link_id)
-			if csub_path.path_type == 'bypass':
-				release_rack_switch_link(topology, wss_link_id)
-		csub_path = csub_path.next
+	# csub_path = sub_path.next
+	# while csub_path:
+	# 	mid_rack_link_id = csub_path.rack_link
+	# 	mid_rack_link = rack_links[mid_rack_link_id]
+	# 	start_rack_num = mid_rack_link.start_rack.rack_num
+	# 	end_rack_num = mid_rack_link.end_rack.rack_num
+	# 	wss_link_id = mid_rack_link_id
+	# 	if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable == rack_links[wss_link_id].start_wss_link.bandwidth and racks[str(start_rack_num)].avaliable_resource == racks[str(start_rack_num)].computer_resource and racks[str(end_rack_num)].avaliable_resource == racks[str(end_rack_num)].computer_resource:
+	# 		if csub_path.path_type == 'normal':
+	# 			release_rack_osm_wss_link(topology, wss_link_id)
+	# 		if csub_path.path_type == 'bypass':
+	# 			release_rack_switch_link(topology, wss_link_id)
+	# 	csub_path = csub_path.next
 
 def release_rack_osm_wss_link(topo_object, rack_link_id):
 	"""
