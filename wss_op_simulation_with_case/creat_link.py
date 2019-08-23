@@ -369,7 +369,7 @@ def release_resources(sub_path, vnode, topology):
 		start_rack_num = mid_rack_link.start_rack.rack_num
 		end_rack_num = mid_rack_link.end_rack.rack_num
 		wss_link_id = mid_rack_link_id
-		if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable == rack_links[wss_link_id].start_wss_link.bandwidth and racks[str(start_rack_num)].avaliable_resource == racks[str(start_rack_num)].computer_resource and racks[str(end_rack_num)].avaliable_resource == racks[str(end_rack_num)].computer_resource:
+		if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable == rack_links[wss_link_id].start_wss_link.bandwidth:
 			if csub_path.path_type == 'normal':
 				release_rack_osm_wss_link(topology, wss_link_id)
 			if csub_path.path_type == 'bypass':
@@ -442,4 +442,3 @@ def release_rack_osm_wss_link(topo_object, rack_link_id):
 
 	# 删除rack_link中的记录
 	del topology.rack_link[rack_link_id]
-

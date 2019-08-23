@@ -13,10 +13,12 @@ import copy
 from path_data_struct import OpticPath
 # 建立新的链路
 from creat_link import creat_rack_osm_wss_link
+from creat_link import release_rack_osm_wss_link
 # 建立bypass链路
 from create_switch_link import creat_rack_switch_link
 from topology_wss_op import RackLink
 from modify_osm_link import change_osm_link
+from wss_osm_para import BVTNUM, DEGREE
 
 
 class PP(object):
@@ -115,6 +117,7 @@ def create_max_array(topology, vnode, vnf_num):
 	osm_links = topology.link # 以rack节点为索引检索最大带宽
 
 	rack_links = topology.rack_link # 获取整topology中建立的链路
+	index_link = topology.index_link
 	# 同样以OSMOpticalLink的对象内的wss_link对应着外部的索引
 	# 取出recv的数量
 
@@ -137,15 +140,15 @@ def create_max_array(topology, vnode, vnf_num):
 			# 当检测到没有足够的资源时，建立一条新的链路 RackLink
 			# 或当检测到初始状态（还没建立过任何一条链路时，建立一条新的链路）
 			max_bandwidth = 0 # 得到最大的带宽值
-			for out_rack in range(rack_num):
+			for out_rack in index_link[in_rack-1]:
 				# 注意对应的out rack的编号需要加1
-				osm_link = osm_links[str(in_rack)][out_rack]
+				osm_link = osm_links[str(in_rack)][out_rack-1]
 				# 检测到rack之间存在链路
 				if osm_link != "None":
 					# 检测到还没建立任何光路，建立初始链路
 					if osm_link.wss_link is None:
 						# 建立新的链路
-						creat_state = creat_rack_osm_wss_link(topology, in_rack, out_rack+1)
+						creat_state = creat_rack_osm_wss_link(topology, in_rack, out_rack)
 						max_bandwidth = creat_state.start_wss_link.bandwidth_avaliable
 						# 直接跳过
 						continue
@@ -161,19 +164,30 @@ def create_max_array(topology, vnode, vnf_num):
 						mid_id_list = wss_ports.split('_')
 						# 判断是否是两者之间的链路
 						# if int(mid_id_list[0]) == in_rack and int(mid_id_list[1]) == (out_rack+1):
+						# 该判定仅用于是否要新建路
 						if rack_links[wss_ports].end_rack.avaliable_resource >= vnode[j].computer_require and rack_links[wss_ports].start_wss_link.bandwidth_avaliable >= max_band_require:
 							count += 1 # 标记存在可用的链路
 							# 找到所有的最大的带宽值
-							if wss_link.bandwidth_avaliable > max_bandwidth:
-								max_bandwidth = wss_link.bandwidth_avaliable
+						if wss_link.bandwidth_avaliable > max_bandwidth:
+							max_bandwidth = wss_link.bandwidth_avaliable
 					# 当所有的存在链路都不满足时，建立一条新的链路
 					# 无论与否都建立一条新的链路
-					# if count == 0:
-					creat_state = creat_rack_osm_wss_link(topology, in_rack, out_rack+1)
-					# 建路成功
-					if isinstance(creat_state, type(RackLink)):
-						# 直接等于最大带宽值
-						max_bandwidth = creat_state.start_wss_link.bandwidth_avaliable
+					if count == 0:
+						# 限定使用条数
+						# 发射机数量/degree数量
+						# 正常连接长度
+						normalLinkLength = len(osm_link.wss_link) if osm_link.wss_link else 0
+						# 中转链长度 - 不占用发射机
+						midLinkLength = len(osm_link.mid_link) if osm_link.mid_link else 0
+						# bypass链长度
+						bypassLinkLength = len(osm_link.wss_switch_link) if osm_link.wss_switch_link else 0
+						# 注意判断条件（边界条件）
+						if (normalLinkLength + bypassLinkLength) < BVTNUM//DEGREE:
+							creat_state = creat_rack_osm_wss_link(topology, in_rack, out_rack)
+							# 建路成功
+							if isinstance(creat_state, type(RackLink)):
+								# 直接等于最大带宽值
+								max_bandwidth = creat_state.start_wss_link.bandwidth_avaliable
 			mid_max[j] = max_bandwidth
 		max_mat[in_rack-1] = mid_max
 	return max_mat
@@ -463,6 +477,7 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 			# 检测是否符合带宽要求
 			for rack_link in osm_link[str(rack_id)]:
 				if rack_link != 'None':
+					# TODO
 					for wss_link in rack_link.wss_link:
 						if racks[str(rack_id)].avaliable_resource >= vnode[vnf_id].computer_require:
 							if rack_link.wss_link[wss_link].bandwidth_avaliable >= vnode[vnf_id].bandwidth_require:
@@ -506,10 +521,18 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 		# 得到最大的带宽
 		max_band = max(mid_sum_max_band.values())
 		# 取得有最大带宽的rack的列表
+		# 此处取得的最大带宽可能已经不存在了 -- case处理过程中被释放掉了
 		max_band_rack = [i for i in mid_sum_max_band if mid_sum_max_band[i] == max_band]
-		
+		# 存在这样的链路
+		# 对应着有最大的带宽，但是没有对应的链路建立
+		if not max_band_rack:
+			raise ValueError("出现没有最大的带宽和的情况")
 		for rack_id in max_band_rack:
 			mid_link = osm_link[str(pre_rack)][rack_id-1]
+			# 注意此处可能出现没有对应wsslink的情况
+			# 重新添加一条链路
+			# if not mid_link.wss_link:
+			# 	creat_rack_osm_wss_link(topology, pre_rack, rack_id)
 			for wss_link in mid_link.wss_link:
 				# 确认是否是对应的的rack链路
 				mid_id_list = wss_link.split('_')
@@ -547,12 +570,54 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 								elif len(end_rack.recv_list) == len(end_rack.recv_using):
 									blocking_type = "noRecv"
 								else:
+									# TODO 注意会出现这种情况，目前还没有找到原因
+									# 由于已建立链路不能满足对应的需求
+									# 导致出现这种情况
+									# 处理方法
+									# 1. 建立一条新的链路来满足
+									# 2. 直接判定为失效
 									blocking_type = "other"
 								# blocking_type = "noBvt"
 						else:
 							blocking_type = "noEndHost"
 					else:
 						blocking_type = "noStartHost"
+		if (blocking_type=="other" or blocking_type is None) and not chosed_node:
+			# 两种情况
+			# 1. 已建立链路没法满足对应的带宽需求
+			# 2. 对应选择出的最大带宽的rack链路被释放掉了--case处理时
+			# 尝试构建一种新的策略 -- 在此处判断一下
+			# 由于所有对应的链路都没有相应的链路建立
+			# 尝试建立一条新的链路
+			# 这条新建的链路一定会被使用
+			# 由于最大带宽的结点没有满足资源需求（其中有max-mat中的被释放了）
+			# 方案一
+			# 1. 先找出用的最少的端口
+			# 2. 再判断对应的rack的链路是否满足对应的带宽需求
+			# 3. 如果没有满足的则判断是否可以建立新的链路
+			# 方案二 - 采用
+			# 直接通过上面找到的最大的结点（被释放的）建立新的链路
+			link_pre_rack = max_band_rack
+			max_use_num = len(osm_link[str(pre_rack)][link_pre_rack[0]-1].start_port.physic_port.wss_port.slot_use)
+			chosed_max_rack = 0
+			for m_rack in link_pre_rack:
+				if len(osm_link[str(pre_rack)][m_rack-1].start_port.physic_port.wss_port.slot_use) <= max_use_num:
+					max_use_num = len(osm_link[str(pre_rack)][m_rack-1].start_port.physic_port.wss_port.slot_use)
+					chosed_max_rack = m_rack
+			# 新生成的链路对象
+			# 注意此处出现建路不成功的情况
+			chosed_new_create_link_object = creat_rack_osm_wss_link(topology, pre_rack, chosed_max_rack)
+			if isinstance(chosed_new_create_link_object, str):
+				print(len(racks[str(pre_rack)].recv_using), len(racks[str(pre_rack)].trans_using))
+				
+				print(len(racks[str(chosed_max_rack)].recv_using), len(racks[str(chosed_max_rack)].trans_using))
+				print(chosed_new_create_link_object)
+				raise
+			# 选择出的对应的链路id -- RackLink对象
+			chosed_new_create_link_id = f'{pre_rack}_{chosed_max_rack}_{chosed_new_create_link_object.start_wss_link.in_port.port_num}_\
+{chosed_new_create_link_object.start_wss_link.out_port.port_num}_{chosed_new_create_link_object.slot_plan}'
+			chosed_node.append((chosed_new_create_link_id, chosed_new_create_link_object))
+
 	if not chosed_node:
 		# if on == vnf_num-1:
 		# 	case1(topology, pre_rack, vnode, fm, rack_mapped, on)
@@ -858,6 +923,7 @@ def request_mapping(topology, event, case_states):
 	chosed_vnf_list = [None for _ in range(vnf_num)]
 	
 	# 每次选中的物理结点
+
 	chose_node_list = [None for _ in range(vnf_num)]
 	# 第一个结点返回的rack列表
 	# 其他结点返回的RackLink对象
@@ -1102,7 +1168,8 @@ def request_mapping(topology, event, case_states):
 									for wss_switch_link_id, wss_switch_link_object in wss_switch_link.items():
 										if list(wss_switch_link_id.split('_'))[:3] == list(rack_string.split('_')):
 											# 找到的链路不满足
-											if wss_switch_link_object.optical_link[wss_switch_link_id].bandwidth_avaliable < vnode[diff_vnf_index-1].bandwidth_require:
+											# 找到对应转接链路是否满足相应的转接的带宽
+											if wss_switch_link_object.bandwidth_avaliable < vnode[requestPath[2][diff_vnf_index-1]].bandwidth_require:
 												continue
 											else:
 												check_link_id = wss_switch_link_id
@@ -1226,6 +1293,7 @@ def request_mapping(topology, event, case_states):
 				# 选择相应的物理节点
 				for vnf in chosed_vnf_list[i]:
 					chose_node_list[i] = enss(r_g_a, topology, vnode, max_mat, fm, vnf,i,pre_rack, rack_mapped)
+
 					# 确定相应的物理链路-- 加入到链路列表中
 					if isinstance(chose_node_list[i], str):
 						blocking_type = chose_node_list[i]
@@ -1235,31 +1303,59 @@ def request_mapping(topology, event, case_states):
 					break
 				# 没有找到合适的物理结点
 				if isinstance(chose_node_list[i], str):
-					if i == vnf_num - 1:
+					if i == (vnf_num - 1):
 						# 如果是最后一条链路，采用case
+						# 判断case之前判断是否释放对应的没有使用到的链路
+						csub_path = sub_path.next
+						using_link_list = []
+						while csub_path:
+							# 找出对应的已经找到的使用链路
+							using_link_list.append(csub_path.rack_link)
+							csub_path = csub_path.next
+						# 排除前面已经预选出的链路 -- 存储在checked_node_list中
+						# 解决已开新的链路而没有使用-导致链路没有使用
+						# 1. 查找对应已经安排链路
+						# 2. 找到再chosed_node_list中存储的链路
+						# 3. 其他的链路（没有被使用的)直接释放掉
+						# 排除第一步选择结点
+						for check_chose_node_list_node_index in range(1,len(chosed_node_list)):
+							if isinstance(chosed_node_list[check_chose_node_list_node_index], list):
+								using_link_list.extend([i[0] for i in chosed_node_list[check_chose_node_list_node_index]])
+						# 找到未使用的链路并释放
+						not_use_link_list = []
+						for not_use_link in rack_links:
+							if rack_links[not_use_link].start_wss_link.bandwidth_avaliable==rack_links[not_use_link].start_wss_link.bandwidth:
+								if not_use_link not in using_link_list:
+									not_use_link_list.append(not_use_link)
+						for not_use_link in not_use_link_list:
+							release_rack_osm_wss_link(topology, not_use_link)
 						# case1
 						# 确定pre_rack
 						# 确定vnf
-						states, linked, block_type = case2(topology, pre_rack, vnode, fm, rack_mapped, i)
-						if states:
-							success_type = "case2"
-							mid_path_type = "normal"
-						else:
+						states = False
+						while True:
+							states, linked, block_type = case2(topology, pre_rack, vnode, fm, rack_mapped, i)
+							if states:
+								success_type = "case2"
+								mid_path_type = "normal"
+								break
+
 							case_test = get_link_blocking_type(1, case_test, block_type)
 							states, linked, block_type = case3(topology, pre_rack, vnode, fm, rack_mapped, i)
 							if states:
 								sub_path.path_type = "bypass"
 								success_type = "case3"
 								mid_path_type = "bypass"
-							else:
-								case_test = get_link_blocking_type(2, case_test, block_type)
-								states, linked, block_type = case1(topology, pre_rack, vnode, fm, rack_mapped, i)
-								if states:
-									success_type = "case1"
-									mid_path_type = "normal"
-								else:
-									case_test = get_link_blocking_type(0, case_test, block_type)
-									mid_path_type = None
+								break
+							case_test = get_link_blocking_type(2, case_test, block_type)
+							states, linked, block_type = case1(topology, pre_rack, vnode, fm, rack_mapped, i)
+							if states:
+								success_type = "case1"
+								mid_path_type = "normal"
+								break
+							case_test = get_link_blocking_type(0, case_test, block_type)
+							mid_path_type = None
+							break
 
 						if states:
 							# 清除之前映射的结点
@@ -1302,6 +1398,8 @@ def request_mapping(topology, event, case_states):
 			# 处理当前映射
 			# 确认当前映射的rack
 			chose_rack = chosed_node_list[i].pop(0)
+			
+
 			rack_mapped.value[i] = chose_rack[1].end_rack.rack_num
 
 			csub_path = sub_path

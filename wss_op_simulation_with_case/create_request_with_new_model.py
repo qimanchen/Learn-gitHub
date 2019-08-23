@@ -65,11 +65,18 @@ def create_chose_vnf_fg_seed(n, set_seed):
 			virtual_node_dict[virtual_node_type] = VNode(virtual_node_type, virtual_node_cpu, virtual_bandwidth)
 			vnode_type_list.append(virtual_node_type) # 加入去重列表
 	# 更新随机种子
+	# 构建测试请求
+	# virtual_node_dict = {1: VNode()}
+	# if set_seed == 3:
+	# 	virtual_node_dict = {1: VNode(1, 20, 20), 2: VNode(5, 20, 20), 9: VNode(9, 20, 20), 13: VNode(13, 20, 20)}
+	# 	n = 4
+	# else:
+	# 	virtual_node_dict = {1: VNode(1, 20, 20), 9: VNode(9, 20, 20), 13: VNode(13, 20, 20)}
+	# 	n = 3
 	set_seed += 1
 	if 65530 == set_seed:
 		set_seed = 0
 	random.seed(set_seed)
-
 	return n, set_seed, virtual_node_dict
 	
 

@@ -48,6 +48,83 @@ def init_man_queue():
 	tmp.next = None
 	return tmp
 
+def count_resource_state(topology):
+	"""
+	统计资源的使用情况
+	1. cup
+	2. 发射机使用情况
+	3. 接收机的情况
+	4. 带宽资源 -- 当前已建链路的带宽
+	5. up_wss 出端口+slot
+	6. down_wss 入端口+slot
+	"""
+	rack_num = topology.rack_num
+	racks = topology.racks
+	rack_link = topology.rack_link
+	rack_switch_link = topology.rack_switch_link
+	link = topology.link
+	index_link = topology.index_link
+
+	# cpu
+	# 计算资源占比
+	sum_cpu = rack_num * racks['1'].computer_resource
+	# used_sum_cpu = 0
+	avaliable_sum_cpu = 0
+	for rack in racks.values():
+		# 计算所有剩余计算资源
+		avaliable_sum_cpu += rack.avaliable_resource
+	used_cpu_rate = (sum_cpu - avaliable_sum_cpu)/sum_cpu
+	
+	# trans
+	sum_trans = rack_num * len(racks['1'].trans_list)
+	used_sum_trans = 0
+	for rack in racks.values():
+		# 计算剩余的trans数量
+		used_sum_trans += len(rack.trans_using)
+	used_trans_rate = used_sum_trans/sum_trans
+
+	# recv
+	sum_recv = rack_num * len(racks['1'].recv_list)
+	used_sum_recv = 0
+	for rack in racks.values():
+		# 计算使用的recv的数量
+		used_sum_recv += len(rack.recv_using)
+	used_recv_rate = used_sum_recv / sum_recv
+
+	# 记录已经建立的链路的资源使用情况
+	sum_exist_bd = 0
+	last_bd = 0
+	# 主要有两部分
+	# 1. 正常链路
+	# 2. bypass链路
+	for rackLink in rack_link.values():
+		sum_exist_bd += rackLink.start_wss_link.bandwidth
+		last_bd += rackLink.start_wss_link.bandwidth_avaliable
+	for rackLink in rack_switch_link.values():
+		sum_exist_bd += rackLink.start_wss_link.bandwidth
+		last_db += rackLink.start_wss_link.bandwidth_avaliable
+
+	used_bd_rate = (sum_exist_bd - last_bd) / sum_exist_bd
+	
+	# 记录每一个rack的端口使用情况
+	# 端口使用率
+	sum_up_port = len(racks['1'].up_wss.slot_plan) * len(racks['1'].up_wss.out_port)*rack_num
+	last_up_port = 0
+	sum_down_port = len(racks['1'].down_wss.slot_plan) * len(racks['1'].down_wss.in_port)*rack_num
+	last_down_port = 0
+	for rack in racks.values():
+		# 上行wss统计outprot
+		# 下行wss统计inport
+		up_wss = rack.up_wss
+		down_wss = rack.down_wss
+		last_up_port += sum(up_wss.out_port_usenum.values())
+		last_down_port += sum(down_wss.in_port_usenum.values())
+	used_up_rate = last_up_port / sum_up_port
+	used_down_rate = last_down_port/sum_down_port
+
+	return used_cpu_rate, used_trans_rate, used_recv_rate, used_bd_rate, used_up_rate, used_down_rate
+
+
 def main():
 
 	# 物理网络初始化
@@ -112,6 +189,9 @@ def main():
 	# 通过复用之前的链路
 	pp.case_repeat = 0
 
+	# 统计链长
+	pp.sc_len = {} # {‘链长’： ‘次数’}
+
 	case_states = PP()
 	case_states.test = [[0 for i in range(6)] for i in range(4)]
 
@@ -156,6 +236,9 @@ def main():
 				case3_rate = pp.case3/pp.success
 				case4_rate = pp.case4/pp.success
 				case_repeat_rate = pp.case_repeat/pp.success
+				# 统计系统资源情况
+				# used_cpu_rate, used_trans_rate, used_recv_rate, used_bd_rate, used_up_rate, used_down_rate
+				system_resource_state = count_resource_state(topology)
 				# 每 10000条请求输出一次结果
 				print("all blocking: ", blocking)
 				print("no bandwidth blocking: ", no_bandwidth_num_blocking)
@@ -173,8 +256,9 @@ def main():
 				print("case4 num: ", pp.case4)
 				print("case_repeat num: ", pp.case_repeat)
 				print(case_states.test)
+				print("链长分布:", pp.sc_len)
+				print('used_cpu_rate, used_trans_rate, used_recv_rate, used_bd_rate, used_up_rate, used_down_rate', system_resource_state)
 				print("*"*50)
-				print()
 				# 将数据读入文件中
 				file.write(str(blocking)+'\t'+str(no_bandwidth_num_blocking)+'\t'+
 					str(no_slot_num_blocking)+'\t'+ str(no_start_slot_blocking) + '\t' + str(no_end_slot_blocking) + '\t'+
@@ -186,6 +270,14 @@ def main():
 				for caseNum in range(4):
 					file.write('_'.join(map(str, case_states.test[caseNum])) + '\t')
 				file.write('\n')
+				# 将请求链长的分布输入到文件中
+				file.write('service distribution:\t')
+				for len_sc, value in pp.sc_len.items():
+					file.write(str(len_sc)+'\t'+str(value)+'\t')
+				file.write('\n')
+				# 将资源使用情况写入到文件中
+				file.write('used_cpu_rate, used_trans_rate, used_recv_rate, used_bd_rate, used_up_rate, used_down_rate'+'\t')
+				file.write('_'.join(map(str, system_resource_state)) + '\t'+'\n')
 
 			if (all_test == 100000):
 				# 仿真数量的上限

@@ -77,6 +77,12 @@ def event_handler(topology, h, pp, case_states):
 	# 当事件为新的事件时，需要进行映射
 	if code == 1:
 		pp.process_request += 1
+		# 统计请求链的长度
+		sc_len = len(h.next.request)
+		if sc_len in pp.sc_len:
+			pp.sc_len[sc_len] += 1
+		else:
+			pp.sc_len[sc_len] = 1
 		# 映射请求
 		# 对应的值分别是，阻塞类型(正常返回None), 对应的物理路径， 对应的结点和vnf链表
 		blocking_type, sub_path, sub_node_path, success_type = request_mapping(topology, h.next, case_states)

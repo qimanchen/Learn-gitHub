@@ -89,7 +89,7 @@ def change_osm_link(topology, start_rack_num, end_rack_num, used_rack, require_c
 			if not link[str(start_rack)][end_rack-1].link_use:
 				# 找到一条可用的
 				# 判断对应的new_end_rack的计算资源是否满足
-				if topology.racks[str(new_end_rack)] >= require_cpu:
+				if topology.racks[str(end_rack)].avaliable_resource >= require_cpu:
 					new_end_rack = end_rack
 					new_start_rack = start_rack
 					break
