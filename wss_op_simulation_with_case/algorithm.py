@@ -39,38 +39,7 @@ class VNodePath(object):
 		self.vnf = vnf_id  # 映射的vnf
 		self.next = next # 映射的下一个结点
 
-	
-# class ShortPath(object):
-# 	"""
-# 	记录最大带宽矩阵中元素
-# 	"""
 
-# 	def __init__(self, path_id):
-	
-# 		# 链路编号 -- 第几条链路
-# 		self.id = path_id
-# 		# 起始rack
-# 		self.start_rack = None
-# 		# 终止rack
-# 		self.end_rack = None
-# 		# 起始wss端口
-# 		self.wss_trans = None
-# 		# 终止wss端口
-# 		self.wss_recv = None
-# 		# 对应的RackLink对象
-# 		self.rack_link = None
-# 		# 相应的资源
-# 		self.bandwidth = None
-# 		# 记录相应的CPU
-# 		self.cpu = None
-# 		# 最后一个host的cpu
-# 		self.end_cpu = None
-# 		# 记录对应start_host中的链路记录
-# 		self.start_host_vnf_list = None
-# 		# 记录对应end_host中的链路记录--只针对最后一条链路而言
-# 		self.end_host_vnf_list = None
-# 		# 连接的下一端口
-# 		self.next = None
 class ShortPath(object):
 	"""
 	记录相应的物理路径
@@ -107,28 +76,21 @@ def create_max_array(topology, vnode, vnf_num):
 	"""
 	构建最大带宽关系矩阵
 	每个节点对应着各种vnf的最大带宽矩阵
+	# 2019/8/24新思路
+	# 这个函数只进行对应的已建链路的最大带宽的判断--不进行具体资源大小的判断
+	# 不进行链路的新建，只进行链路带宽和的计算
 
 	:param topology: 整个仿真系统的topo对象
 	:param vnode: {vnode_num: } # vnf结点字典
 	:param vnf_num: vnf的个数
 	"""
-	rack_num = topology.rack_num # 物理节点的个数
-	
-	osm_links = topology.link # 以rack节点为索引检索最大带宽
-
-	rack_links = topology.rack_link # 获取整topology中建立的链路
+	rack_num = topology.rack_num
+	osm_links = topology.link
+	rack_links = topology.rack_link
 	index_link = topology.index_link
-	# 同样以OSMOpticalLink的对象内的wss_link对应着外部的索引
-	# 取出recv的数量
-
-	# 当检测到没有实际的物理路径时，建立一条新的链路以支持
-	# 对应物理资源
-	# 对应的带宽资源 
+	
 	# max_mat = [[0 for i in range(vnf_num)] for _ in range(rack_num)]
 	max_mat = [None for _ in range(rack_num)]
-	# 求出需要的最大带宽
-	# 找出对应具有最小的带宽需求
-	max_band_require = max([node.bandwidth_require for node in vnode.values()])
 
 	# 针对每个rack, rack的编号是从1开始的
 	for in_rack in range(1, rack_num+1):
@@ -136,9 +98,6 @@ def create_max_array(topology, vnode, vnf_num):
 		counter = 0
 		mid_max = {} # 记录每个vnf对应的最大的带宽
 		for j in vnode.keys():
-			# 针对每个in_rack的out_rack是否满足映射对应的最大带宽矩阵
-			# 当检测到没有足够的资源时，建立一条新的链路 RackLink
-			# 或当检测到初始状态（还没建立过任何一条链路时，建立一条新的链路）
 			max_bandwidth = 0 # 得到最大的带宽值
 			for out_rack in index_link[in_rack-1]:
 				# 注意对应的out rack的编号需要加1
@@ -146,158 +105,22 @@ def create_max_array(topology, vnode, vnf_num):
 				# 检测到rack之间存在链路
 				if osm_link != "None":
 					# 检测到还没建立任何光路，建立初始链路
-					if osm_link.wss_link is None:
+					if not osm_link.wss_link:
 						# 建立新的链路
 						creat_state = creat_rack_osm_wss_link(topology, in_rack, out_rack)
 						max_bandwidth = creat_state.start_wss_link.bandwidth_avaliable
 						# 直接跳过
 						continue
-						# 建路失败
-						# if not isinstance(creat_state, type(RackLink)):
-						# 	pass
-					# 遍历所有两个rack之间建立的链路，找出最大带宽的需求
-					# 记录是否所有存在链路都符合对应的需求
-					count = 0
+					# 遍历两结点之间已经建立的链路
 					for wss_ports, wss_link in osm_link.wss_link.items():
 						# 找到对应的终结点
-						# 取出链路对应的start_rack和end_rack
-						mid_id_list = wss_ports.split('_')
-						# 判断是否是两者之间的链路
-						# if int(mid_id_list[0]) == in_rack and int(mid_id_list[1]) == (out_rack+1):
-						# 该判定仅用于是否要新建路
-						if rack_links[wss_ports].end_rack.avaliable_resource >= vnode[j].computer_require and rack_links[wss_ports].start_wss_link.bandwidth_avaliable >= max_band_require:
-							count += 1 # 标记存在可用的链路
-							# 找到所有的最大的带宽值
+						# 去除之前资源限制的判断 -- 2019/8/24
 						if wss_link.bandwidth_avaliable > max_bandwidth:
 							max_bandwidth = wss_link.bandwidth_avaliable
-					# 当所有的存在链路都不满足时，建立一条新的链路
-					# 无论与否都建立一条新的链路
-					if count == 0:
-						# 限定使用条数
-						# 发射机数量/degree数量
-						# 正常连接长度
-						normalLinkLength = len(osm_link.wss_link) if osm_link.wss_link else 0
-						# 中转链长度 - 不占用发射机
-						midLinkLength = len(osm_link.mid_link) if osm_link.mid_link else 0
-						# bypass链长度
-						bypassLinkLength = len(osm_link.wss_switch_link) if osm_link.wss_switch_link else 0
-						# 注意判断条件（边界条件）
-						if (normalLinkLength + bypassLinkLength) < BVTNUM//DEGREE:
-							creat_state = creat_rack_osm_wss_link(topology, in_rack, out_rack)
-							# 建路成功
-							if isinstance(creat_state, type(RackLink)):
-								# 直接等于最大带宽值
-								max_bandwidth = creat_state.start_wss_link.bandwidth_avaliable
 			mid_max[j] = max_bandwidth
 		max_mat[in_rack-1] = mid_max
 	return max_mat
 
-
-# WF n*n的矩阵
-# WL n*n*n的矩阵
-# n是vnf的个数
-# Fm 大小为 n的矩阵 -- 记录vnf的状态（是否被映射）
-# 之前算法使用的
-def read_rga_link(r_g_a, n, on):
-	"""
-	读取关系拓扑图
-	:param r_g_a: vnf之间的关系拓扑
-	:param n: 请求中vnf的个数
-	:param on: 映射的第on+1个结点 -- on从0开始
-	:param fm:
-	:param wf:
-	:param wl:
-	"""
-	mid = r_g_a # 请求链关系拓扑
-
-	mid_i = 0
-	mid_first = 0
-	counter = 0
-	counterr = 0
-	fm = [0 for _ in range(n)]
-	wf = [[0 for _ in range(n)] for _ in range(n)]
-	wl = [[[0 for _ in range(n)] for _ in range(n)] for _ in range(n)]
-
-	# 寻找到最前面的vnf
-	for j in range(n):
-
-		if (mid[mid_i][j] != 2) and (j == (n-1)) and (fm[mid_i] == 0):
-			mid_first = mid_i
-			wf[on][mid_i] = 1
-			break
-		elif (mid[mid_i][j] != 2) and (j == (n-1)) and (fm[mid_i] != 0):
-			mid_i += 1
-
-			if mid == n:
-				mid_i == 0
-			j = -1
-			if mid_i == n:
-				mid_i = 0
-		elif (mid[mid_i][j] == 2) and (fm[mid_i] == 0) and (j == n-1) and fm[j] != 0:
-			mid_first = mid_i
-			wf[on][mid_i] = 1
-			break
-		elif mid[mid_i][j] == 2 and fm[j] == 0:
-			mid_i = j
-			j = -1
-
-		if j == n-1:
-			for i in range(n):
-				if wf[on][i] == 0:
-					counter += 1
-			if counter == n:
-				mid_i += 1
-				if mid_i == n:
-					mid_i = 0
-				j = -1
-				counter = 0
-			else:
-				counter = 0
-	# 寻找并行的vnf
-	for j in range(n):
-		if mid[mid_first][j] == 32676 and fm[j] == 0:
-			for i in range(n):
-				if mid[j][i] == 2:
-					if mid[i][mid_first] == 32676:
-						counter += 1
-			if counterr == 0:
-				wf[on][j] = 1
-			else:
-				counterr = 0
-
-	fail_in = 0
-	# 寻找后面的vnf
-	for j in range(n):
-		if wf[on][j] == 1:
-			for in_j in range(n):
-				if mid[j][in_j] == 32676 and fm[in_j] == 0:
-					wl[on][j][in_j] = 1
-				elif mid[j][in_j] == -2:
-					for in_in_j in range(n):
-						if mid[in_j][in_in_j] == 2 and mid[in_in_j][j] == 2 and in_in_j != j:
-							fail_in += 1
-					if fail_in == 0:
-						wl[on][j][in_j] = 1
-				fail_in = 0
-	return fm, wf, wl
-
-
-# 之前算法使用的
-def chose_y_n(wf, n, on):
-	"""
-	从vnf forwarding graph中选择一个vnf
-	:param wf:
-	:param n: vnf的个数
-	:param on: 映射的第on+1个vnf
-	"""
-	counter = 0
-	for i in range(n):
-		if wf[on][i] == 1:
-			counter += 1
-	if counter >= 2:
-		return 1
-	else:
-		return 0
 
 def get_vnf(r_g_a, fm):
 	"""
@@ -312,11 +135,8 @@ def get_vnf(r_g_a, fm):
 	th_level = r_g_a.th_level
 	fo_level = r_g_a.fo_level
 	mid_level = r_g_a.mid_level
-	
 	vnf_chosed_list = [] # 需要判断关系的vnfs
-	
 	vnf_mapped_list = fm
-	
 	
 	# 检测第一等级的vnf
 	for vnf_id in fi_level:
@@ -328,24 +148,20 @@ def get_vnf(r_g_a, fm):
 		for vnf_id in se_level:
 			if vnf_id not in vnf_mapped_list:
 				vnf_chosed_list.append(vnf_id)
-	
 	if not vnf_chosed_list:
 		# 检测level3
 		for vnf_id in th_level:
 			if vnf_id not in vnf_mapped_list:
-				vnf_chosed_list.append(vnf_id)
-				
+				vnf_chosed_list.append(vnf_id)		
 	if not vnf_chosed_list:
 		# 检测level4
 		for vnf_id in fo_level:
 			if vnf_id not in vnf_mapped_list:
 				vnf_chosed_list.append(vnf_id)
-	
 	# 检测与其他vnf都无关系的vnf
 	for vnf_id in mid_level:
 		if vnf_id not in vnf_mapped_list:
-			vnf_chosed_list.append(vnf_id)
-			
+			vnf_chosed_list.append(vnf_id)	
 	return vnf_chosed_list
 
 
@@ -355,16 +171,12 @@ def vnss(r_g_a, topology, vnode, max_mat,fm, check_vnf, on, pre_rack):
 	:param on: 当前映射顺序
 	:param pre_rack: 前一个选择的rack编号
 	"""
-	rack_num = topology.rack_num # 物理节点的个数
-	
-	index_links = topology.index_link # 记录着每个rack连接着那些其他rack
-	
-	rack_links = topology.rack_link # 获取整topology中建立的链路
-	
-	vnode_ids = list(vnode.keys()) # 记录着每个vnf所在的index
+	rack_num = topology.rack_num
+	index_links = topology.index_link
+	rack_links = topology.rack_link
+	vnode_ids = list(vnode.keys())
 	
 	mid_sum_max_band = {} # 记录多个不同vnf的最大带宽和
-	
 	max_vnf = [] # 记录最大的vnfs
 	# 选中的结点
 	chosed_vnf = []
@@ -434,27 +246,20 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 	:param on: 当前映射顺序
 	:param pre_rack: 前一个选择的rack编号
 	"""
-	rack_num = topology.rack_num # 物理节点的个数
-	
+	rack_num = topology.rack_num
 	osm_link = topology.link
-	
-	racks = topology.racks #对应的物理结点的个数
-	
-	index_links = topology.index_link # 记录着每个rack连接着那些其他rack
-	
-	rack_links = topology.rack_link # 获取整topology中建立的链路
-	
+	racks = topology.racks
+	index_links = topology.index_link
+	rack_links = topology.rack_link
+
 	vnode_ids = list(vnode.keys()) # 记录着每个vnf所在的index
 	vnf_num = len(vnode)
-	
 	mid_sum_max_band = {} # 记录多个不同vnf的最大带宽和, rack: max_band
-	
 	max_vnf = [] # 记录最大的vnfs
 	# 选中的结点
 	chosed_node = []
 	# 确认可操作vnf
 	check_vnf = get_vnf(r_g_a,fm.value.values())
-	
 	blocking_type = None
 	
 	# 检测是否是第一个节点
@@ -490,19 +295,12 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 								# start_rack
 								if start_rack.trans_list.keys() == start_rack.trans_using.keys():
 									blocking_type = "noTrans"
-								# elif start_up_wss.slot_plan == start_up_wss.slot_plan_use:
-								# 	blocking_type = "noStartSlot"
-								# # end_rack
-								# elif end_down_wss.slot_plan == end_down_wss.slot_plan_use:
-								# 	blocking_type = "noEndSlot"
 								else:
 									blocking_type = "other"
 						else:
 							blocking_type = 'noStartHost'
 		# 去除重复的rack
 		chosed_node = list(set(chosed_node))
-			# if racks[str(rack_id)].avaliable_resource >= vnode[vnf_id].computer_require:
-			# 	chosed_node.append(rack_id)
 	else:
 		rack_mapped_list = list(rack_mapped.value.values())
 		pre_vnf = fm.value[on-1]
@@ -597,33 +395,55 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 			# 3. 如果没有满足的则判断是否可以建立新的链路
 			# 方案二 - 采用
 			# 直接通过上面找到的最大的结点（被释放的）建立新的链路
-			link_pre_rack = max_band_rack
-			max_use_num = len(osm_link[str(pre_rack)][link_pre_rack[0]-1].start_port.physic_port.wss_port.slot_use)
-			chosed_max_rack = 0
+			# 当所有的存在链路都不满足时，建立一条新的链路
+
+			link_pre_rack = list(mid_sum_max_band.keys())
+			# 直接判断所有对应可选rack中对应的端口数用的是最少的
+			chosed_used_num_dict = {}
 			for m_rack in link_pre_rack:
-				if len(osm_link[str(pre_rack)][m_rack-1].start_port.physic_port.wss_port.slot_use) <= max_use_num:
-					max_use_num = len(osm_link[str(pre_rack)][m_rack-1].start_port.physic_port.wss_port.slot_use)
-					chosed_max_rack = m_rack
-			# 新生成的链路对象
-			# 注意此处出现建路不成功的情况
-			chosed_new_create_link_object = creat_rack_osm_wss_link(topology, pre_rack, chosed_max_rack)
-			if isinstance(chosed_new_create_link_object, str):
-				print(len(racks[str(pre_rack)].recv_using), len(racks[str(pre_rack)].trans_using))
-				
-				print(len(racks[str(chosed_max_rack)].recv_using), len(racks[str(chosed_max_rack)].trans_using))
-				print(chosed_new_create_link_object)
-				raise
-			# 选择出的对应的链路id -- RackLink对象
-			chosed_new_create_link_id = f'{pre_rack}_{chosed_max_rack}_{chosed_new_create_link_object.start_wss_link.in_port.port_num}_\
-{chosed_new_create_link_object.start_wss_link.out_port.port_num}_{chosed_new_create_link_object.slot_plan}'
-			chosed_node.append((chosed_new_create_link_id, chosed_new_create_link_object))
+				chosed_used_num_dict[m_rack] = len(osm_link[str(pre_rack)][m_rack-1].start_port.physic_port.wss_port.slot_use)
+			# 进行排序--根据对应slot_use
+			sorted_chosed_rack = sorted(chosed_used_num_dict, key=lambda x: chosed_used_num_dict[x])
+			chosed_new_create_link_object = None
+			for mm_rack in sorted_chosed_rack:
+				# 判断对应的结点的带宽资源是否满足
+				if racks[str(mm_rack)].avaliable_resource >= vnode[vnf_id].computer_require:
+					mm_osm_link = osm_link[str(pre_rack)][mm_rack-1]
+					# 判断负载均衡是否符合
+					normalLinkLength = len(mm_osm_link.wss_link) if mm_osm_link.wss_link else 0
+					# 中转链长度 - 不占用发射机
+					midLinkLength = len(mm_osm_link.mid_link) if mm_osm_link.mid_link else 0
+					# bypass链长度
+					bypassLinkLength = len(mm_osm_link.wss_switch_link) if mm_osm_link.wss_switch_link else 0
+					# 注意判断条件（边界条件）
+					if (normalLinkLength + bypassLinkLength) < BVTNUM//DEGREE:
+						chosed_new_create_link_object = creat_rack_osm_wss_link(topology, pre_rack, mm_rack)
+						if isinstance(chosed_new_create_link_object, str):
+							if chosed_new_create_link_object in ["noStartOutPort","noStartInPort", "noSameSlot"]:
+								blocking_type = "noStartSlot"
+							elif chosed_new_create_link_object in ["noEndInPort", "noEndOutPort"]:
+								blocking_type = "noEndSlot"
+							elif chosed_new_create_link_object == 'notTrans':
+								blocking_type = "noTrans"
+							elif chosed_new_create_link_object == 'notRecv':
+								blocking_type = "noRecv"
+						else:
+							chosed_new_create_link_id = f'{pre_rack}_{mm_rack}_{chosed_new_create_link_object.start_wss_link.in_port.port_num}_{chosed_new_create_link_object.start_wss_link.out_port.port_num}_{chosed_new_create_link_object.slot_plan}'
+							chosed_node.append((chosed_new_create_link_id, chosed_new_create_link_object))
+							break
+					else:
+						blocking_type = "noStartSlot"
+				else:
+					blocking_type = "noEndHost"
+			else:
+				blocking_type = "noStartSlot"
 
 	if not chosed_node:
 		# if on == vnf_num-1:
 		# 	case1(topology, pre_rack, vnode, fm, rack_mapped, on)
 		return blocking_type
 
-	if isinstance(chosed_node[0], tuple):
+	if len(chosed_node) > 1 and isinstance(chosed_node[0], tuple):
 		# 从非第一结点开始选择
 		# 判断优先使用连接端口使用最少的
 		key_id = ['_'.join(key[0].split('_')[:2]) for key in chosed_node]
