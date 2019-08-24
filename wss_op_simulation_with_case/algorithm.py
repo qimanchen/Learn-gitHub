@@ -266,41 +266,47 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 	if not fm.value.values():
 		# 第一个节点
 		next_vnfs = get_next_vnf(r_g_a, vnf_id, check_vnf)
-		mid_max = 0
-		for rack in range(rack_num):
-			mid_sum = 0
-			# 先找出具有最大带宽的rack
-			for vnf in next_vnfs:
-				mid_sum += max_mat[rack][vnf]
-			mid_sum_max_band[rack+1] = mid_sum
-		# 得到最大的带宽
-		max_band = max(mid_sum_max_band.values())
-		# 取得有最大带宽的rack的列表
-		max_band_rack = [i for i in mid_sum_max_band if mid_sum_max_band[i] == max_band]
+		# 选择串口连接数最小的
+		first_chosed_using_port_num = {}
+		for first_chosed_rack in racks:
+			first_chosed_using_port_num[first_chosed_rack] = sum([i for i in racks[first_chosed_rack].up_wss.out_port_usenum.values()])
+		min_first_chosed_using_port_num = min(first_chosed_using_port_num.values())
+		for min_rack in first_chosed_using_port_num:
+			if first_chosed_using_port_num[min_rack] == min_first_chosed_using_port_num:
+				chosed_node.append(int(min_rack))
+		# mid_max = 0
+		# for rack in range(rack_num):
+		# 	mid_sum = 0
+		# 	# 先找出具有最大带宽的rack
+		# 	for vnf in next_vnfs:
+		# 		mid_sum += max_mat[rack][vnf]
+		# 	mid_sum_max_band[rack+1] = mid_sum
+		# # 得到最大的带宽
+		# max_band = max(mid_sum_max_band.values())
+		# # 取得有最大带宽的rack的列表
+		# max_band_rack = [i for i in mid_sum_max_band if mid_sum_max_band[i] == max_band]
 		# 筛选出满足计算资源的rack
-		for rack_id in max_band_rack:
-			# 检测是否符合带宽要求
-			for rack_link in osm_link[str(rack_id)]:
-				if rack_link != 'None':
-					# TODO
-					for wss_link in rack_link.wss_link:
-						if racks[str(rack_id)].avaliable_resource >= vnode[vnf_id].computer_require:
-							if rack_link.wss_link[wss_link].bandwidth_avaliable >= vnode[vnf_id].bandwidth_require:
-								chosed_node.append(rack_id)
-							else:
-								start_up_wss = racks[str(rack_id)].up_wss
-								end_down_wss = racks[str(rack_id)].down_wss
-								start_rack = racks[str(rack_id)]
-								# 检测是否有bvt剩余
-								# start_rack
-								if start_rack.trans_list.keys() == start_rack.trans_using.keys():
-									blocking_type = "noTrans"
-								else:
-									blocking_type = "other"
-						else:
-							blocking_type = 'noStartHost'
-		# 去除重复的rack
-		chosed_node = list(set(chosed_node))
+		# for rack_id in max_band_rack:
+		# 	# 检测是否符合带宽要求
+		# 	for rack_link in osm_link[str(rack_id)]:
+		# 		if rack_link != 'None':
+		# 			# TODO
+		# 			for wss_link in rack_link.wss_link:
+		# 				if racks[str(rack_id)].avaliable_resource >= vnode[vnf_id].computer_require:
+		# 					if rack_link.wss_link[wss_link].bandwidth_avaliable >= vnode[vnf_id].bandwidth_require:
+		# 						chosed_node.append(rack_id)
+		# 					else:
+		# 						start_up_wss = racks[str(rack_id)].up_wss
+		# 						end_down_wss = racks[str(rack_id)].down_wss
+		# 						start_rack = racks[str(rack_id)]
+		# 						# 检测是否有bvt剩余
+		# 						# start_rack
+		# 						if start_rack.trans_list.keys() == start_rack.trans_using.keys():
+		# 							blocking_type = "noTrans"
+		# 						else:
+		# 							blocking_type = "other"
+		# 				else:
+		# 					blocking_type = 'noStartHost'
 	else:
 		rack_mapped_list = list(rack_mapped.value.values())
 		pre_vnf = fm.value[on-1]
