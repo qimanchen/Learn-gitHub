@@ -834,7 +834,7 @@ def request_mapping(topology, event, case_states):
 			# sorted_rack = list(rack_mapped.value.values())
 			# sub_path.first_rack = first_rack
 			# topology.racks[str(first_rack)].mapping_sc[sub_path.request_num] = (vnf_num, sorted_rack, sorted_vnf, sub_path)
-			if topology.racks[str(chose_rack)].mapping_sc:
+			if topology.racks[str(chose_rack)].mapping_sc and False:
 				# 只有当存在着映射链路时才进行设置
 				for requestNum, requestPath in topology.racks[str(chose_rack)].mapping_sc.items():
 					if set(requestPath[2]) > set(vnfList) and (len(requestPath[2]) - len(vnfList)) == 1:
@@ -1129,7 +1129,7 @@ def request_mapping(topology, event, case_states):
 					break
 				# 没有找到合适的物理结点
 				if isinstance(chose_node_list[i], str):
-					if i == (vnf_num - 1):
+					if i == (vnf_num - 1) and False:
 						# 如果是最后一条链路，采用case
 						# 判断case之前判断是否释放对应的没有使用到的链路
 						csub_path = sub_path.next
