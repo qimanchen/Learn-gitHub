@@ -525,6 +525,14 @@ def get_next_vnf(r_g_a, vnf_id, check_vnf):
 				next_vnfs.extend(fo_level)
 
 	return next_vnfs
+def cacl_port_use_num(topology, pre_rack_num, end_rack_num):
+	"""
+	计算某个rack的某个端口的使用总数
+	"""
+	osm_link = topology.link
+	target_osm_link = osm_link[str(pre_rack_num)][int(end_rack_num)-1]
+	# 计算对应的start端口的使用次数
+	return target_osm_link.start_port.physic_port.wss_port.slot_num
 
 def case3(topology, pre_rack, vnode, fm, rack_mapped, on):
 	"""
@@ -563,6 +571,15 @@ def case3(topology, pre_rack, vnode, fm, rack_mapped, on):
 		return False, None, 'noRacks'
 
 	# 确定对应的end rack
+	# 计算端口的使用次数
+	# 优先判断端口数最小的rack -- 出端使用次数最小的端口
+	mid_rack_port_use_num = []
+	for rack in avaliable_racks:
+		port_uses = cacl_port_use_num(topology, pre_rack, rack)
+		mid_rack_port_use_num.append([rack, port_uses])
+	mid_rack_port_use_num = sorted(mid_rack_port_use_num, key=lambda x:x[1])
+	avaliable_racks = [rack[0] for rack in mid_rack_port_use_num]
+
 	end_racks = {rack:[] for rack in avaliable_racks}
 
 	for rack in avaliable_racks:
@@ -574,6 +591,12 @@ def case3(topology, pre_rack, vnode, fm, rack_mapped, on):
 	require_cpu = vnode[chose_vnf].computer_require
 	rack_link = 'noRacks'
 	for mid_rack, rack in end_racks.items():
+		mid_rack_port_use_num = []
+		for mrack in rack:
+			port_uses = cacl_port_use_num(topology, mid_rack, mrack)
+			mid_rack_port_use_num.append([mrack, port_uses])
+		mid_rack_port_use_num = sorted(mid_rack_port_use_num, key=lambda x:x[1])
+		rack = [mrack[0] for mrack in mid_rack_port_use_num]
 		for in_rack in rack:
 			if racks[str(in_rack)].avaliable_resource >= require_cpu:
 				rack_link = creat_rack_switch_link(topology, pre_rack, mid_rack, in_rack)
@@ -834,7 +857,7 @@ def request_mapping(topology, event, case_states):
 			# sorted_rack = list(rack_mapped.value.values())
 			# sub_path.first_rack = first_rack
 			# topology.racks[str(first_rack)].mapping_sc[sub_path.request_num] = (vnf_num, sorted_rack, sorted_vnf, sub_path)
-			if topology.racks[str(chose_rack)].mapping_sc and False:
+			if topology.racks[str(chose_rack)].mapping_sc:
 				# 只有当存在着映射链路时才进行设置
 				for requestNum, requestPath in topology.racks[str(chose_rack)].mapping_sc.items():
 					if set(requestPath[2]) > set(vnfList) and (len(requestPath[2]) - len(vnfList)) == 1:
@@ -1129,7 +1152,7 @@ def request_mapping(topology, event, case_states):
 					break
 				# 没有找到合适的物理结点
 				if isinstance(chose_node_list[i], str):
-					if i == (vnf_num - 1) and False:
+					if i == (vnf_num - 1):
 						# 如果是最后一条链路，采用case
 						# 判断case之前判断是否释放对应的没有使用到的链路
 						csub_path = sub_path.next
