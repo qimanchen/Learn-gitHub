@@ -744,6 +744,11 @@ def request_mapping(topology, event, case_states):
 	5. case4 - case4
 	:param case_states: 统计case的情况
 	"""
+
+	# 两种资源变换
+	# 1. wss端口变换
+	# 2. slot的变换
+
 	# 创建统计case不可行原因数组
 	# case_test = [[0 for i in range(6)] for i in range(4)]
 	case_test = case_states.test
@@ -857,7 +862,7 @@ def request_mapping(topology, event, case_states):
 			# sorted_rack = list(rack_mapped.value.values())
 			# sub_path.first_rack = first_rack
 			# topology.racks[str(first_rack)].mapping_sc[sub_path.request_num] = (vnf_num, sorted_rack, sorted_vnf, sub_path)
-			if topology.racks[str(chose_rack)].mapping_sc:
+			if topology.racks[str(chose_rack)].mapping_sc and False:
 				# 只有当存在着映射链路时才进行设置
 				for requestNum, requestPath in topology.racks[str(chose_rack)].mapping_sc.items():
 					if set(requestPath[2]) > set(vnfList) and (len(requestPath[2]) - len(vnfList)) == 1:
@@ -1152,7 +1157,7 @@ def request_mapping(topology, event, case_states):
 					break
 				# 没有找到合适的物理结点
 				if isinstance(chose_node_list[i], str):
-					if i == (vnf_num - 1):
+					if i == (vnf_num - 1) and False:
 						# 如果是最后一条链路，采用case
 						# 判断case之前判断是否释放对应的没有使用到的链路
 						csub_path = sub_path.next
@@ -1183,13 +1188,13 @@ def request_mapping(topology, event, case_states):
 						# 确定vnf
 						states = False
 						while True:
-							states, linked, block_type = case2(topology, pre_rack, vnode, fm, rack_mapped, i)
-							if states:
-								success_type = "case2"
-								mid_path_type = "normal"
-								break
+							# states, linked, block_type = case2(topology, pre_rack, vnode, fm, rack_mapped, i)
+							# if states:
+							# 	success_type = "case2"
+							# 	mid_path_type = "normal"
+							# 	break
 
-							case_test = get_link_blocking_type(1, case_test, block_type)
+							# case_test = get_link_blocking_type(1, case_test, block_type)
 							states, linked, block_type = case3(topology, pre_rack, vnode, fm, rack_mapped, i)
 							if states:
 								sub_path.path_type = "bypass"
@@ -1197,12 +1202,12 @@ def request_mapping(topology, event, case_states):
 								mid_path_type = "bypass"
 								break
 							case_test = get_link_blocking_type(2, case_test, block_type)
-							states, linked, block_type = case1(topology, pre_rack, vnode, fm, rack_mapped, i)
-							if states:
-								success_type = "case1"
-								mid_path_type = "normal"
-								break
-							case_test = get_link_blocking_type(0, case_test, block_type)
+							# states, linked, block_type = case1(topology, pre_rack, vnode, fm, rack_mapped, i)
+							# if states:
+							# 	success_type = "case1"
+							# 	mid_path_type = "normal"
+							# 	break
+							# case_test = get_link_blocking_type(0, case_test, block_type)
 							mid_path_type = None
 							break
 

@@ -16,8 +16,8 @@ from algorithm import request_mapping
 # 测试新算法
 # from algorithm_first_fit import request_mapping
 # 导入物理网路建路和删路函数
-from creat_link import creat_rack_osm_wss_link
-from creat_link import release_rack_osm_wss_link
+# from creat_link import creat_rack_osm_wss_link
+# from creat_link import release_rack_osm_wss_link
 # 导入更新物理网络资源和释放物理网络资源的函数
 from creat_link import renew_resources
 from creat_link import release_resources
@@ -84,7 +84,7 @@ def event_handler(topology, h, pp, case_states):
 		else:
 			pp.sc_len[sc_len] = 1
 		# 映射请求
-		# 对应的值分别是，阻塞类型(正常返回None), 对应的物理路径， 对应的结点和vnf链表
+		# 对应的值分别是，阻塞类型(正常返回None), 对应的物理路径， 对应的结点和vnf链表, 那种成功的映射类型
 		blocking_type, sub_path, sub_node_path, success_type = request_mapping(topology, h.next, case_states)
 
 		if not blocking_type:
@@ -104,7 +104,15 @@ def event_handler(topology, h, pp, case_states):
 				pp.case4 += 1
 			pp.success += 1
 			csub_path = sub_path
-			renew_resources(topology, csub_path, vnode)
+			use_or_not_new_link = renew_resources(topology, csub_path, vnode)
+			# # 使用了新的链路
+			# pp.use_new_link = 0
+			# # 未使用新链路
+			# pp.not_use_new_link = 0
+			if use_or_not_new_link:
+				pp.use_new_link += 1
+			else:
+				pp.not_use_new_link += 1
 		else:
 			# 请求处理失败
 			pp.fail_num += 1

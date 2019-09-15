@@ -9,13 +9,14 @@
 """
 # 导入RacSwitchLink类对象
 from topology_wss_op import RackSwitchLink
+from log_decorator import log_wss_link_create,log_wss_link_release
 
 
 def creat_switch_link(topo_object, rack_num, start_osm_port, end_osm_port):
 	"""
 	建立某个rack内部的中转链路
 	"""
-
+@log_wss_link_create
 def creat_rack_switch_link(topo_object, start_rack_num, mid_rack_num, end_rack_num):
 	"""
 	建立rack之间的转接链路
@@ -64,7 +65,7 @@ def creat_rack_switch_link(topo_object, start_rack_num, mid_rack_num, end_rack_n
 	# start mid
 	start_mid_osm_start_port = start_mid_osm_link.start_port
 	start_mid_osm_end_port = start_mid_osm_link.end_port
-	# 对应的wss的端口
+	# 对应的wss的端口是否有可用的slot端口
 	if not start_rack_up_wss.check_osm_wss_port(start_mid_osm_start_port.physic_port.wss_port.port_num):
 		return "noStartOutPort"
 	if not mid_rack_down_wss.check_osm_wss_port(start_mid_osm_end_port.physic_port.wss_port.port_num):
@@ -77,15 +78,37 @@ def creat_rack_switch_link(topo_object, start_rack_num, mid_rack_num, end_rack_n
 		return "noMidOutPort"
 	if not end_rack_down_wss.check_osm_wss_port(mid_end_osm_end_port.physic_port.wss_port.port_num):
 		return "noEndInPort"
+	# 使用已经建立端口的输入和输出端口
+	start_up_wss_link = start_mid_osm_link.wss_link
+	start_up_wss_port_id = 0
+	if not start_up_wss_link:
+		start_up_wss_port_id = start_rack_up_wss.find_useable_port()
+		if not start_up_wss_port_id:
+			return "noStartInPort"
+	else:
+		for i in start_up_wss_link.values():
+			start_up_wss_port_id = i.in_port.port_num
+			break
+
+	end_down_wss_port_id = 0
+	end_down_wss_link = mid_end_osm_link.wss_link
+	if not end_down_wss_link:
+		end_down_wss_port_id = end_rack_down_wss.find_useable_port()
+		if not end_down_wss_port_id:
+			return "noStartInPort"
+	else:
+		for i in end_down_wss_link.values():
+			end_down_wss_port_id = i.out_port.port_num
+			break
 
 	# 确定start rack的输入端口
-	start_up_wss_port_id = start_rack_up_wss.find_useable_port()
-	if not start_up_wss_port_id:
-		return "noStartInPort"
-	# 确定end rack的输出端口
-	end_down_wss_port_id = end_rack_down_wss.find_useable_port()
-	if not end_down_wss_port_id:
-		return "noEndOutPort"
+	# start_up_wss_port_id = start_rack_up_wss.find_useable_port()
+	# if not start_up_wss_port_id:
+	# 	return "noStartInPort"
+	# # 确定end rack的输出端口
+	# end_down_wss_port_id = end_rack_down_wss.find_useable_port()
+	# if not end_down_wss_port_id:
+	# 	return "noEndOutPort"
 
 	# 确定slot
 	# no_use_slot包括mid中没有已经使用的slot和end rack中使用的slot
@@ -176,6 +199,7 @@ def creat_rack_switch_link(topo_object, start_rack_num, mid_rack_num, end_rack_n
 	topo_object.rack_link[f'{start_rack_num}_{mid_rack_num}_{end_rack_num}_{start_up_wss_port_id}_{start_mid_osm_start_port.physic_port.wss_port.port_num}_{slot_plan}'] = rack_switch_link
 	return rack_switch_link
 
+@log_wss_link_release
 def release_rack_switch_link(topo_object, rack_link_id):
 	"""
 	释放中转链路

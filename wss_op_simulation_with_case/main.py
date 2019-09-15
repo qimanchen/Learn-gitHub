@@ -19,6 +19,7 @@ from topology_wss_op import Topology
 from event_request import event_handler
 # 导入架构大小参数
 from wss_osm_para import RACKNUM, BVTNUM, DEGREE, WSSSLOT
+from global_params import count_wss_oprator
 
 
 class Point(object):
@@ -57,6 +58,8 @@ def count_resource_state(topology):
 	4. 带宽资源 -- 当前已建链路的带宽
 	5. up_wss 出端口+slot
 	6. down_wss 入端口+slot
+
+	# 统计两两连接的rack的对数
 	"""
 	rack_num = topology.rack_num
 	racks = topology.racks
@@ -123,6 +126,38 @@ def count_resource_state(topology):
 	used_down_rate = last_down_port/sum_down_port
 
 	return used_cpu_rate, used_trans_rate, used_recv_rate, used_bd_rate, used_up_rate, used_down_rate
+
+
+def count_rack_matchs(topology):
+	"""
+	统计整个系统中的rack连接对数
+	"""
+	# 初始系统的rack连接对数
+	init_rack_cap_list = [] # ['startRack_EndRack_slot']
+	bypass_rack_cap_list = [] # ['startRackf_midRack_endRack_slot']
+	# 每个端口可用的次数
+	rack_link = topology.rack_link
+
+	for link in rack_link.values():
+		start_rack = link.start_rack.rack_num
+		end_rack = link.end_rack.rack_num
+		slot = link.slot_plan
+		if link.link_type == "noSwitch":
+			rack_cap = f'{start_rack}_{end_rack}_{slot}'
+			if rack_cap in init_rack_cap_list:
+				raise ValueError("建立正常链路有错-统计rack对")
+			init_rack_cap_list.append(rack_cap)
+		elif link.link_type == "switch":
+			mid_rack = link.mid_rack.rack_num
+			rack_cap = f'{start_rack}_{mid_rack}_{end_rack}_{slot}'
+			if rack_cap in bypass_rack_cap_list:
+				raise ValueError("建立bypass链路有错-统计rack对")
+			bypass_rack_cap_list.append(rack_cap)
+		else:
+			raise ValueError("链路类型错误")
+	# pp.one_rack_cap
+	# pp.bypass_rack_cap
+	return len(init_rack_cap_list), len(bypass_rack_cap_list)
 
 
 def main():
@@ -192,6 +227,33 @@ def main():
 	# 统计链长
 	pp.sc_len = {} # {‘链长’： ‘次数’}
 
+	# 统计rack之间的对数
+	# 对应的总的rack连接对数
+	all_rack_cap = (DEGREE * RACKNUM)
+	# 实时rack对数 -- 数据类型['startRack_EndRack_slot(以startrack的为准)']
+	# 通过rack直接相连的对数
+	one_rack_cap = 0
+	# 通过bypass连接的rack对数
+	bypass_rack_cap = 0
+
+	# 统计wss操作次数
+	# wss链路建立
+	pp.wss_link_create = 0
+	# wss链路删除
+	pp.wss_link_delete = 0
+	# wss同start and end建立的链路
+	pp.wss_link_same_rack =0
+	# wss上端端口的选择
+	# wss同上端端口，slot的选择
+	# 操作端口连接
+	# 操作slot连接
+
+	# 统计链路是否使用了新的链路
+	# 使用了新的链路
+	pp.use_new_link = 0
+	# 未使用新链路
+	pp.not_use_new_link = 0
+
 	case_states = PP()
 	case_states.test = [[0 for i in range(6)] for i in range(4)]
 
@@ -218,6 +280,7 @@ def main():
 			all_test += 1
 			
 			if (all_test % 10000) == 0:
+				
 				blocking = pp.fail_num/pp.process_request # 整体阻塞率
 				no_bandwidth_num_blocking = pp.no_bandwidth_num/pp.process_request # 没有波长资源而阻塞
 
@@ -239,6 +302,11 @@ def main():
 				# 统计系统资源情况
 				# used_cpu_rate, used_trans_rate, used_recv_rate, used_bd_rate, used_up_rate, used_down_rate
 				system_resource_state = count_resource_state(topology)
+				# 统计rack对
+				one_rack_cap, bypass_rack_cap = count_rack_matchs(topology)
+				one_rack_cap_rate = one_rack_cap/all_rack_cap
+				bypass_rack_cap_rate = bypass_rack_cap/all_rack_cap
+				
 				# 每 10000条请求输出一次结果
 				print("all blocking: ", blocking)
 				print("no bandwidth blocking: ", no_bandwidth_num_blocking)
@@ -258,6 +326,10 @@ def main():
 				print(case_states.test)
 				print("链长分布:", pp.sc_len)
 				print('used_cpu_rate, used_trans_rate, used_recv_rate, used_bd_rate, used_up_rate, used_down_rate', system_resource_state)
+				print("one_rack_cap_rate, bypass_rack_cap_rate", one_rack_cap_rate, "  ", bypass_rack_cap_rate)
+
+				print("use_new_link_rack, not_use_new_link_racte", pp.use_new_link/pp.success, pp.not_use_new_link/pp.success)
+				print("create_wss_link_num, release_wss_link_num", count_wss_oprator.CREATE_WSS_LINK,count_wss_oprator.RELEASE_WSS_LINK)
 				print("*"*50)
 				# 将数据读入文件中
 				file.write(str(blocking)+'\t'+str(no_bandwidth_num_blocking)+'\t'+
@@ -279,6 +351,14 @@ def main():
 				file.write('used_cpu_rate, used_trans_rate, used_recv_rate, used_bd_rate, used_up_rate, used_down_rate'+'\t')
 				file.write('_'.join(map(str, system_resource_state)) + '\t'+'\n')
 
+				#将rack对情况写入到文件中
+				file.write("one_rack_cap_rate, bypass_rack_cap_rate"+"\t"+ str(one_rack_cap_rate)+"\t"+str(bypass_rack_cap_rate)+"\n")
+
+				# 将请求是否使用了新建链路存入到文件
+				file.write("use_new_link_rack, not_use_new_link_racte"+"\t"+ str(pp.use_new_link/pp.success)+"\t"+str(pp.not_use_new_link/pp.success)+"\n")
+
+				file.write("create_wss_link_num, release_wss_link_num"+"\t"+str(count_wss_oprator.CREATE_WSS_LINK)+"\t"+str(count_wss_oprator.RELEASE_WSS_LINK)+"\n")
+			
 			if (all_test == 100000):
 				# 仿真数量的上限
 				blocking = pp.fail_num/pp.process_request # 整体阻塞率

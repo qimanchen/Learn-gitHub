@@ -8,12 +8,15 @@
 各种建路子程序和路查询子程序
 """
 # 确认建立的新路
+import functools
 from topology_wss_op import RackLink
 from global_params import INIT_BANDWIDTH
 from global_params import INIT_COMPUTER_RESOURCE
 from create_switch_link import release_rack_switch_link
+# from main import log_wss_link_create
+from log_decorator import log_wss_link_create,log_wss_link_release
 
-
+@log_wss_link_create
 def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 	"""
 	确认了start_rack和end_rack
@@ -289,6 +292,9 @@ def renew_resources(topology, sub_path, vnode):
 	更新选中链路的资源
 	:param sub_path: 整个映射链路
 	"""
+	# 当请求链中使用了新的链路
+	# 对应的带宽资源是满状态的
+	use_or_not_new_link = False
 	racks = topology.racks # 拓扑文件中的
 	rack_links = topology.rack_link
 
@@ -310,14 +316,20 @@ def renew_resources(topology, sub_path, vnode):
 			# mid_rack_link.end_rack.avaliable_resource -= vnode[end_vnf].computer_require
 			# mid_rack_link.start_rack.avaliable_resource -= vnode[start_vnf].computer_require
 			# 更新带宽资源
+			if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable == rack_links[wss_link_id].start_wss_link.bandwidth:
+				use_or_not_new_link = True
 			rack_links[wss_link_id].start_wss_link.bandwidth_avaliable -= vnode[start_vnf].bandwidth_require
 		else:
 			# 更新物理资源
 			racks[str(start_rack_num)].avaliable_resource -= vnode[start_vnf].computer_require
 			# mid_rack_link.start_rack.avaliable_resource -= vnode[start_vnf].computer_require
 			# 更新带宽资源
+			if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable == rack_links[wss_link_id].start_wss_link.bandwidth:
+				use_or_not_new_link = True
 			rack_links[wss_link_id].start_wss_link.bandwidth_avaliable -= vnode[start_vnf].bandwidth_require
 		csub_path = csub_path.next
+	return use_or_not_new_link
+
 
 def release_resources(sub_path, vnode, topology):
 	"""
@@ -376,6 +388,7 @@ def release_resources(sub_path, vnode, topology):
 				release_rack_switch_link(topology, wss_link_id)
 		csub_path = csub_path.next
 
+@log_wss_link_release
 def release_rack_osm_wss_link(topo_object, rack_link_id):
 	"""
 	当检测到wss中的带宽完全空闲时 -- 可用资源等于初始资源

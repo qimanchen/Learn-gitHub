@@ -8,7 +8,7 @@
 所有的公共参数
 """
 # load
-ERLANG = 220
+ERLANG = 260
 # 虚拟网络功能链参数
 
 # 1. 虚拟网络功能类型参数
@@ -20,6 +20,18 @@ SELEVEL = [5,6,7,8]
 THLEVEL = [9,10,11,12]
 FOLEVEL = [13,14,15,16]
 MIDLEVEL = [17,18,19,20]
+
+
+class PP(object):
+	"""
+	指针对象
+	"""
+	pass
+count_wss_oprator = PP()
+count_wss_oprator.CREATE_WSS_LINK = 0
+count_wss_oprator.RELEASE_WSS_LINK = 0
+
+
 
 # 资源需求随机范围
 # 0.1 - 0.2

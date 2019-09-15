@@ -265,7 +265,7 @@ class ShortPath(object):
 		self.next = None
 
 
-def request_mapping(topology, event):
+def request_mapping(topology, event, case_states):
 	"""
 	请求处理模块
 	请求映射成功类型
