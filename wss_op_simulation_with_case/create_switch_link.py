@@ -78,37 +78,37 @@ def creat_rack_switch_link(topo_object, start_rack_num, mid_rack_num, end_rack_n
 		return "noMidOutPort"
 	if not end_rack_down_wss.check_osm_wss_port(mid_end_osm_end_port.physic_port.wss_port.port_num):
 		return "noEndInPort"
-	# 使用已经建立端口的输入和输出端口
-	start_up_wss_link = start_mid_osm_link.wss_link
-	start_up_wss_port_id = 0
-	if not start_up_wss_link:
-		start_up_wss_port_id = start_rack_up_wss.find_useable_port()
-		if not start_up_wss_port_id:
-			return "noStartInPort"
-	else:
-		for i in start_up_wss_link.values():
-			start_up_wss_port_id = i.in_port.port_num
-			break
+	# 使用已经建立端口的输入和输出端口 -- Debug
+	# start_up_wss_link = start_mid_osm_link.wss_link
+	# start_up_wss_port_id = 0
+	# if not start_up_wss_link:
+	# 	start_up_wss_port_id = start_rack_up_wss.find_useable_port()
+	# 	if not start_up_wss_port_id:
+	# 		return "noStartInPort"
+	# else:
+	# 	for i in start_up_wss_link.values():
+	# 		start_up_wss_port_id = i.in_port.port_num
+	# 		break
 
-	end_down_wss_port_id = 0
-	end_down_wss_link = mid_end_osm_link.wss_link
-	if not end_down_wss_link:
-		end_down_wss_port_id = end_rack_down_wss.find_useable_port()
-		if not end_down_wss_port_id:
-			return "noStartInPort"
-	else:
-		for i in end_down_wss_link.values():
-			end_down_wss_port_id = i.out_port.port_num
-			break
+	# end_down_wss_port_id = 0
+	# end_down_wss_link = mid_end_osm_link.wss_link
+	# if not end_down_wss_link:
+	# 	end_down_wss_port_id = end_rack_down_wss.find_useable_port()
+	# 	if not end_down_wss_port_id:
+	# 		return "noStartInPort"
+	# else:
+	# 	for i in end_down_wss_link.values():
+	# 		end_down_wss_port_id = i.out_port.port_num
+	# 		break
 
 	# 确定start rack的输入端口
-	# start_up_wss_port_id = start_rack_up_wss.find_useable_port()
-	# if not start_up_wss_port_id:
-	# 	return "noStartInPort"
-	# # 确定end rack的输出端口
-	# end_down_wss_port_id = end_rack_down_wss.find_useable_port()
-	# if not end_down_wss_port_id:
-	# 	return "noEndOutPort"
+	start_up_wss_port_id = start_rack_up_wss.find_useable_port()
+	if not start_up_wss_port_id:
+		return "noStartInPort"
+	# 确定end rack的输出端口
+	end_down_wss_port_id = end_rack_down_wss.find_useable_port()
+	if not end_down_wss_port_id:
+		return "noEndOutPort"
 
 	# 确定slot
 	# no_use_slot包括mid中没有已经使用的slot和end rack中使用的slot
@@ -195,7 +195,7 @@ def creat_rack_switch_link(topo_object, start_rack_num, mid_rack_num, end_rack_n
 	rack_switch_link.trans = trans
 	rack_switch_link.recv = recv
 	rack_switch_link.slot_plan = slot_plan
-
+	rack_link_id = f'{start_rack_num}_{mid_rack_num}_{end_rack_num}_{start_up_wss_port_id}_{start_mid_osm_start_port.physic_port.wss_port.port_num}_{slot_plan}'
 	topo_object.rack_link[f'{start_rack_num}_{mid_rack_num}_{end_rack_num}_{start_up_wss_port_id}_{start_mid_osm_start_port.physic_port.wss_port.port_num}_{slot_plan}'] = rack_switch_link
 	return rack_switch_link
 
@@ -207,6 +207,11 @@ def release_rack_switch_link(topo_object, rack_link_id):
 	"""
 	# 确定对应的rack
 	# 对应start rack的
+	# if rack_link_id == "17_8_22_4_22_3":
+	# 	print("release", topo_object.rack_link[rack_link_id])
+	# 	print("release", topo_object.rack_link[rack_link_id].end_wss_link)
+	# 	print("release", topo_object.rack_link[rack_link_id].end_wss_link.port[str(24)].slot_use)
+
 	start_rack_num, mid_rack_num, end_rack_num, start_up_wss_in_port_id, start_up_wss_out_port_id, slot_plan = list(map(int, rack_link_id.split('_')))
 
 	topology = topo_object
@@ -267,6 +272,7 @@ def release_rack_switch_link(topo_object, rack_link_id):
 	start_up_wss.delete_connect(slot_plan, start_up_wss_in_port_id, start_up_wss_out_port_id)
 	mid_down_wss.delete_connect(slot_plan, mid_down_wss_in_port_id, mid_down_wss_out_port_id)
 	mid_up_wss.delete_connect(slot_plan, mid_up_wss_in_port_id, mid_up_wss_out_port_id)
+	
 	end_down_wss.delete_connect(slot_plan, end_down_wss_in_port_id, end_down_wss_out_port_id)
 
 	del topo_object.rack_link[rack_link_id]

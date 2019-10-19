@@ -127,6 +127,68 @@ def count_resource_state(topology):
 
 	return used_cpu_rate, used_trans_rate, used_recv_rate, used_bd_rate, used_up_rate, used_down_rate
 
+def count_wss_port(topology):
+	# 统计wss端口使用的情况
+	# 分为两种wss
+	# 1. 上行wss
+	# 2. 下行wss
+	# wss内也分为两种接口
+	# bypass接口，非bypass接口
+	# 特点，上行wss的中间几个端口为bypass端口
+	# 下行wss的最后几个端口为bypass端口
+	# 数据结构
+	# rack_num: {up_wss:上行端口，下行端口，bypass端口,down_wss: 上行端口，下行端口，bypass端口}
+	racks = topology.racks
+	all_rack_count = RACKNUM
+	# 通过遍历整个rack实现
+
+	up_wss_inport_num = [i for i in range(1, BVTNUM+1)]
+	up_wss_bypass_num = [i for i in range(BVTNUM+1, BVTNUM+DEGREE+1)]
+	up_wss_outport_num = [i for i in range(BVTNUM+DEGREE+1, BVTNUM+DEGREE+DEGREE+1)]
+
+	down_wss_inport_num = [i for i in range(1, DEGREE+1)]
+	down_wss_outport_num = [i for i in range(DEGREE+1, BVTNUM+DEGREE+1)]
+	down_wss_bypass_num = [i for i in range(BVTNUM+DEGREE+1, BVTNUM+DEGREE+DEGREE+1)]
+
+	rack_upwss_inport = [None for i in range(RACKNUM)]
+	rack_upwss_outport = [None for i in range(RACKNUM)]
+	rack_upwss_bypass = [None for i in range(RACKNUM)]
+
+	rack_downwss_inport = [None for i in range(RACKNUM)]
+	rack_downwss_outport = [None for i in range(RACKNUM)]
+	rack_downwss_bypass = [None for i in range(RACKNUM)]
+
+	for rack_num, rack in racks.items():
+		rack_num = int(rack_num)
+		up_wss = rack.up_wss
+		inport, bypass, outport = 0, 0, 0
+		for port,count in up_wss.in_port_usenum.items():
+			if count != 0 and (port in up_wss_inport_num):
+				inport += 1
+			elif count != 0 and (port in up_wss_bypass_num):
+				bypass += 1
+		for port,count in up_wss.out_port_usenum.items():
+			if count != 0 and (port in up_wss_outport_num):
+				outport += 1
+		rack_upwss_inport[rack_num -1] = inport
+		rack_upwss_outport[rack_num -1] = outport
+		rack_upwss_bypass[rack_num -1] = bypass
+
+		inport, bypass, outport = 0, 0, 0
+		down_wss = rack.down_wss
+		for port,count in down_wss.in_port_usenum.items():
+			if count != 0 and (port in up_wss_inport_num):
+				inport += 1
+		for port,count in down_wss.out_port_usenum.items():
+			if count != 0 and (port in down_wss_outport_num):
+				outport += 1
+			elif count != 0 and (port in down_wss_bypass_num):
+				bypass += 1
+		rack_downwss_inport[rack_num -1] = inport
+		rack_downwss_outport[rack_num -1] = outport
+		rack_downwss_bypass[rack_num -1] = bypass
+	return rack_upwss_inport, rack_upwss_outport, rack_upwss_bypass, rack_downwss_inport, rack_downwss_outport,rack_downwss_bypass
+				
 
 def count_rack_matchs(topology):
 	"""
@@ -143,16 +205,15 @@ def count_rack_matchs(topology):
 		end_rack = link.end_rack.rack_num
 		slot = link.slot_plan
 		if link.link_type == "noSwitch":
-			rack_cap = f'{start_rack}_{end_rack}_{slot}'
-			if rack_cap in init_rack_cap_list:
-				raise ValueError("建立正常链路有错-统计rack对")
-			init_rack_cap_list.append(rack_cap)
+			# 只统计rack之间的连接对
+			rack_cap = f'{start_rack}_{end_rack}'
+			if rack_cap not in init_rack_cap_list:
+				init_rack_cap_list.append(rack_cap)
 		elif link.link_type == "switch":
 			mid_rack = link.mid_rack.rack_num
-			rack_cap = f'{start_rack}_{mid_rack}_{end_rack}_{slot}'
-			if rack_cap in bypass_rack_cap_list:
-				raise ValueError("建立bypass链路有错-统计rack对")
-			bypass_rack_cap_list.append(rack_cap)
+			rack_cap = f'{start_rack}_{mid_rack}_{end_rack}'
+			if rack_cap not in bypass_rack_cap_list:
+				bypass_rack_cap_list.append(rack_cap)
 		else:
 			raise ValueError("链路类型错误")
 	# pp.one_rack_cap
@@ -271,6 +332,8 @@ def main():
 	file.write('all blocking\tno bandwidth blocking\tno slot blocking\tno cpu blocking\n')
 	# 输出测试基本参数
 	print(f'Load: {ERLANG}\tDgree: {DEGREE}\tBvtNum: {BVTNUM}\tRacknum: {RACKNUM}\tSlot: {WSSSLOT}')
+	rack_upwss_inport, rack_upwss_outport, rack_upwss_bypass, rack_downwss_inport, rack_downwss_outport,rack_downwss_bypass = [None for _ in range(6)]
+	count_wss_port_counter = 0 # 统计计数
 	# 整体测试的开始
 	while True:
 		if man_h.next.type == 1:
@@ -348,8 +411,8 @@ def main():
 					file.write(str(len_sc)+'\t'+str(value)+'\t')
 				file.write('\n')
 				# 将资源使用情况写入到文件中
-				file.write('used_cpu_rate, used_trans_rate, used_recv_rate, used_bd_rate, used_up_rate, used_down_rate'+'\t')
-				file.write('_'.join(map(str, system_resource_state)) + '\t'+'\n')
+				file.write('used_cpu_rate, used_trans_rate, used_recv_rate, used_bd_rate, used_up_rate, used_down_rate'+'\t\n')
+				file.write('\t'.join(map(str, system_resource_state)) + '\t'+'\n')
 
 				#将rack对情况写入到文件中
 				file.write("one_rack_cap_rate, bypass_rack_cap_rate"+"\t"+ str(one_rack_cap_rate)+"\t"+str(bypass_rack_cap_rate)+"\n")
@@ -358,7 +421,18 @@ def main():
 				file.write("use_new_link_rack, not_use_new_link_racte"+"\t"+ str(pp.use_new_link/pp.success)+"\t"+str(pp.not_use_new_link/pp.success)+"\n")
 
 				file.write("create_wss_link_num, release_wss_link_num"+"\t"+str(count_wss_oprator.CREATE_WSS_LINK)+"\t"+str(count_wss_oprator.RELEASE_WSS_LINK)+"\n")
-			
+			if (all_test == 100):
+				count_wss_port_counter += 1
+				rack_upwss_inport, rack_upwss_outport, rack_upwss_bypass, rack_downwss_inport, rack_downwss_outport,rack_downwss_bypass = count_wss_port(topology)
+			elif all_test != 100 and all_test % 100 == 0:
+				count_wss_port_counter += 1
+				crack_upwss_inport, crack_upwss_outport, crack_upwss_bypass, crack_downwss_inport, crack_downwss_outport,crack_downwss_bypass = count_wss_port(topology)
+				rack_upwss_inport = list(map(sum,zip(rack_upwss_inport, crack_upwss_inport)))
+				rack_upwss_outport = list(map(sum,zip(rack_upwss_outport,crack_upwss_outport)))
+				rack_upwss_bypass = list(map(sum,zip(rack_upwss_bypass, crack_upwss_bypass)))
+				rack_downwss_inport = list(map(sum,zip(rack_downwss_inport, crack_downwss_inport)))
+				rack_downwss_outport = list(map(sum,zip(rack_downwss_outport, crack_downwss_outport)))
+				rack_downwss_bypass = list(map(sum,zip(rack_downwss_bypass, crack_downwss_bypass)))
 			if (all_test == 100000):
 				# 仿真数量的上限
 				blocking = pp.fail_num/pp.process_request # 整体阻塞率
@@ -366,20 +440,39 @@ def main():
 				no_slot_num_blocking = pp.no_slot_num/pp.process_request # 没有slot资源而阻塞
 				no_cpu_blocking = pp.no_cpu/pp.process_request # 没有计算资源而阻塞
 				switch_wss = pp.switch_wss/pp.process_request # 通过切换wss映射链的比率
+				# wss端口统计求平均
+				rack_upwss_inport = list(map(lambda x: x/count_wss_port_counter,rack_upwss_inport))
+				rack_upwss_outport = list(map(lambda x: x/count_wss_port_counter,rack_upwss_outport))
+				rack_upwss_bypass = list(map(lambda x: x/count_wss_port_counter,rack_upwss_bypass))
+				rack_downwss_inport = list(map(lambda x: x/count_wss_port_counter,rack_downwss_inport))
+				rack_downwss_outport = list(map(lambda x: x/count_wss_port_counter,rack_downwss_outport))
+				rack_downwss_bypass = list(map(lambda x: x/count_wss_port_counter,rack_downwss_bypass))
 				# 每 10000条请求输出一次结果
 				print("all blocking: ", blocking)
 				print("no bandwidth blocking: ", no_bandwidth_num_blocking)
 				print("no slot blocking: ", no_slot_num_blocking)
 				print('no cpu blocking: ', no_cpu_blocking)
 				print('switch wss request: ', switch_wss)
+				print('rack_upwss____inport: ', *rack_upwss_inport)
+				print('rack_upwss___outport: ', *rack_upwss_outport)
+				print('rack_upwss____bypass: ', *rack_upwss_bypass)
+				print('rack_downwss__inport: ', *rack_downwss_inport)
+				print('rack_downwss_outport: ', *rack_downwss_outport)
+				print('rack_downwss__bypass: ', *rack_downwss_bypass)
 				print("*"*50)
 				print()
 				# 将数据读入文件中
 				file.write(str(blocking)+'\t\t'+str(no_bandwidth_num_blocking)+'\t\t'+
 					str(no_slot_num_blocking)+'\t\t' + str(no_cpu_blocking)+'\t\t'+str(switch_wss) + '\n')
+				file.write("\t".join(map(str, rack_upwss_inport)) + "\n")
+				file.write("\t".join(map(str, rack_upwss_outport)) + "\n")
+				file.write("\t".join(map(str, rack_upwss_bypass)) + "\n")
+				file.write("\t".join(map(str, rack_downwss_inport)) + "\n")
+				file.write("\t".join(map(str, rack_downwss_outport)) + "\n")
+				file.write("\t".join(map(str, rack_downwss_bypass)) + "\n")
 				break
 		# 开始处理请求
-		event_handler(topology, man_h, pp, case_states)
+		topology = event_handler(topology, man_h, pp, case_states)
 
 	file.close()
 	print('*'*50, "测试完成", "*"*50)

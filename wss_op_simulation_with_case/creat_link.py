@@ -136,6 +136,7 @@ def creat_rack_osm_wss_link(topo_object, start_rack_num, end_rack_num):
 
 	topology.rack_link['{}_{}_{}_{}_{}'.format(start_rack_num, end_rack_num, up_wss_in_port_id,
 		start_rack_up_wss_port_id, slot_plan)] = rack_link
+	# rack_link_id = '{}_{}_{}_{}_{}'.format(start_rack_num, end_rack_num, up_wss_in_port_id,start_rack_up_wss_port_id, slot_plan)
 	return rack_link
 
 def creat_rack_osm_wss_link_with_id(topo_object, start_rack_num, end_rack_num):
@@ -302,6 +303,7 @@ def renew_resources(topology, sub_path, vnode):
 	while csub_path:
 		mid_rack_link_id = csub_path.rack_link # 对应的物理链路
 		mid_rack_link = rack_links[mid_rack_link_id]
+
 		start_vnf = csub_path.start_vnf
 		start_rack_num = mid_rack_link.start_rack.rack_num
 		wss_link_id = mid_rack_link_id
@@ -384,7 +386,7 @@ def release_resources(sub_path, vnode, topology):
 		if rack_links[wss_link_id].start_wss_link.bandwidth_avaliable == rack_links[wss_link_id].start_wss_link.bandwidth:
 			if csub_path.path_type == 'normal':
 				release_rack_osm_wss_link(topology, wss_link_id)
-			if csub_path.path_type == 'bypass':
+			elif csub_path.path_type == 'bypass':
 				release_rack_switch_link(topology, wss_link_id)
 		csub_path = csub_path.next
 

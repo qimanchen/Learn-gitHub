@@ -48,4 +48,4 @@ OSMSIZE = DEGREE * RACKNUM
 # wss中slot的数量
 # slot plan 设定为，每四个slot为一个整体
 # [1, 2, ... , 12]
-WSSSLOT = 24
+WSSSLOT = 20

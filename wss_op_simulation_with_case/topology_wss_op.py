@@ -435,7 +435,7 @@ class WSS(object):
 		"""
 		检查osm与wss连接的端口是否还有可用波长
 		"""
-		if self._port[str(port_num)].slot_num != WSSSLOT//4:
+		if self._port[str(port_num)].slot_num != (WSSSLOT//4):
 			# 该端口还可用
 			return True
 		else:
@@ -517,7 +517,6 @@ class WSS(object):
 		D个端口连接上层osm
 		:param slot_plan: 使用的slot plan
 		"""
-
 		# 确定输入输出端口对象
 		inport = self._port[str(in_port)]
 		outport = self._port[str(out_port)]

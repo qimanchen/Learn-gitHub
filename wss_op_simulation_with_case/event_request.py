@@ -85,7 +85,7 @@ def event_handler(topology, h, pp, case_states):
 			pp.sc_len[sc_len] = 1
 		# 映射请求
 		# 对应的值分别是，阻塞类型(正常返回None), 对应的物理路径， 对应的结点和vnf链表, 那种成功的映射类型
-		blocking_type, sub_path, sub_node_path, success_type = request_mapping(topology, h.next, case_states)
+		blocking_type, sub_path, sub_node_path, success_type, topology = request_mapping(topology, h.next, case_states)
 
 		if not blocking_type:
 			# 请求处理成功
@@ -147,3 +147,4 @@ def event_handler(topology, h, pp, case_states):
 	elif code == 100:
 		pass
 		# 请求末尾
+	return topology

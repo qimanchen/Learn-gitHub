@@ -435,6 +435,7 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 								blocking_type = "noRecv"
 						else:
 							chosed_new_create_link_id = f'{pre_rack}_{mm_rack}_{chosed_new_create_link_object.start_wss_link.in_port.port_num}_{chosed_new_create_link_object.start_wss_link.out_port.port_num}_{chosed_new_create_link_object.slot_plan}'
+
 							chosed_node.append((chosed_new_create_link_id, chosed_new_create_link_object))
 							break
 					else:
@@ -663,6 +664,7 @@ def case2(topology, pre_rack, vnode, fm, rack_mapped, on):
 	"""
 	# 找到还没有映射的vnf
 	# 清除之前未映射成功的vnf和相应的rack
+	# 如果没找到要还原此步
 	if on in fm.value:
 		del fm.value[on]
 	if on in rack_mapped.value:
@@ -684,29 +686,33 @@ def case2(topology, pre_rack, vnode, fm, rack_mapped, on):
 		if rack not in used_racks:
 			avaliable_racks.append(rack)
 
-	if not avaliable_racks:
-		# 没有可用的rack
-		return False, None, 'noRacks'
+	# if not avaliable_racks:
+	# 	# 没有可用的rack
+	# 	if fm_value:
+	# 		fm.value[on] = fm_value
+	# 	if rack_mapped_value:
+	# 		rack_mapped.value[on] = rack_mapped_value
+	# 	return False, None, 'noRacks'
 
 	# 最后一个vnf对象
 	require_cpu = vnode[chose_vnf].computer_require
 	# 测试
 	rack_link = 'noRacks'
 	for rack in avaliable_racks:
-		if racks[str(rack)].avaliable_resource >= require_cpu:
-			rack_link = creat_rack_osm_wss_link(topology, pre_rack, rack)
-			if isinstance(rack_link, type(RackLink)):
-				# 找到了合适的链路，返回链路对象
-				# 对应链路的参数
-				fm.value[on] = chose_vnf
-				startrack = rack_link.start_rack.rack_num
-				endrack = rack_link.end_rack.rack_num
-				upwssinport = rack_link.start_wss_link.in_port.port_num
-				upwssoutport = rack_link.start_wss_link.out_port.port_num
-				slotplan = rack_link.slot_plan
-				return True, f'{startrack}_{endrack}_{upwssinport}_{upwssoutport}_{slotplan}', True
-	else:
-		return False, None, rack_link
+		# if racks[str(rack)].avaliable_resource >= require_cpu:
+		rack_link = creat_rack_osm_wss_link(topology, pre_rack, rack)
+		if isinstance(rack_link, type(RackLink)):
+			# 找到了合适的链路，返回链路对象
+			# 对应链路的参数
+			fm.value[on] = chose_vnf
+			startrack = rack_link.start_rack.rack_num
+			endrack = rack_link.end_rack.rack_num
+			upwssinport = rack_link.start_wss_link.in_port.port_num
+			upwssoutport = rack_link.start_wss_link.out_port.port_num
+			slotplan = rack_link.slot_plan
+			return True, f'{startrack}_{endrack}_{upwssinport}_{upwssoutport}_{slotplan}', True
+	
+	return False, None, rack_link
 
 def get_link_blocking_type(case_num, case, blocking_value):
 	"""
@@ -829,11 +835,13 @@ def request_mapping(topology, event, case_states):
 				# 当检测到没有其他可选vnf时
 				if not chosed_vnf_list[i]:
 					# 没有其他可选的vnf
-					return blocking_type, None, None, success_type
+					return blocking_type, None, None, success_type, topology
 
 				for vnf in chosed_vnf_list[i]:
 					
 					chose_node_list[i] = enss(r_g_a, topology, vnode, max_mat, fm, vnf,i,None, None)
+					# 更新rack_links -- 每次建立了新的连接
+					rack_links = topology.rack_link
 					# 确定相应的物理链路-- 加入到链路列表中
 					if isinstance(chose_node_list[i], str):
 						# 没有找到相应的物理结点时
@@ -844,7 +852,7 @@ def request_mapping(topology, event, case_states):
 					break
 				# 当找不到对应的物理结点时
 				if isinstance(chose_node_list[i], str):
-					return blocking_type, None, None, success_type
+					return blocking_type, None, None, success_type, topology
 			# 清除之前映射的路径
 			sub_path.next = None
 			# 建立相应的物理路径
@@ -917,7 +925,7 @@ def request_mapping(topology, event, case_states):
 								if not topology.racks[str(sub_path.first_rack)].mapping_sc:
 									topology.racks[str(sub_path.first_rack)].mapping_sc = {}
 								topology.racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num] = (requestPath[0]-1, requestPath[1][1:], requestPath[2][1:], sub_path)
-								return None, sub_path, sub_node_path,'case_repeat'
+								return None, sub_path, sub_node_path,'case_repeat', topology
 						elif diff_vnf_index == len(requestPath[2])-1:
 							# 后面，直接使用前面的链路 -- 如果资源足够
 							pre_sub_path = requestPath[3]
@@ -970,7 +978,7 @@ def request_mapping(topology, event, case_states):
 								if not topology.racks[str(sub_path.first_rack)].mapping_sc:
 									topology.racks[str(sub_path.first_rack)].mapping_sc = {}
 								topology.racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num] = (requestPath[0]-1, requestPath[1][:-1], requestPath[2][:-1], sub_path)
-								return None, sub_path, sub_node_path,'case_repeat'
+								return None, sub_path, sub_node_path,'case_repeat', topology
 						else:
 							# 在链路的中间，建立新的bypass链路
 							pre_sub_path = requestPath[3]
@@ -1063,12 +1071,13 @@ def request_mapping(topology, event, case_states):
 									mapped_rack = requestPath[1][:diff_vnf_index] + requestPath[1][diff_vnf_index+1:]
 									mapped_vnf = requestPath[2][:diff_vnf_index] + requestPath[2][diff_vnf+1:]
 									topology.racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num] = (requestPath[0]-1, mapped_rack, mapped_vnf, sub_path)
-									return None, sub_path, sub_node_path,'case4'
+									return None, sub_path, sub_node_path,'case4', topology
 
 								# 判断资源是否足够
 								else:
 									# 没有找到 -- 尝试建立新的链路
 									new_switch_link = creat_rack_switch_link(topology, sstart_rack, mid_rack, eend_rack)
+									rack_links = topology.rack_link
 									if not isinstance(new_switch_link, str):
 										# 成功找到链路
 										# 确定链路的id
@@ -1106,7 +1115,7 @@ def request_mapping(topology, event, case_states):
 										mapped_rack = requestPath[1][:diff_vnf_index] + requestPath[1][diff_vnf_index+1:]
 										mapped_vnf = requestPath[2][:diff_vnf_index] + requestPath[2][diff_vnf+1:]
 										topology.racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num] = (requestPath[0]-1, mapped_rack, mapped_vnf, sub_path)
-										return None, sub_path, sub_node_path,'case4'
+										return None, sub_path, sub_node_path,'case4', topology
 									else:
 										case_test = get_link_blocking_type(3, case_test, new_switch_link)
 			i += 1
@@ -1147,7 +1156,7 @@ def request_mapping(topology, event, case_states):
 				# 选择相应的物理节点
 				for vnf in chosed_vnf_list[i]:
 					chose_node_list[i] = enss(r_g_a, topology, vnode, max_mat, fm, vnf,i,pre_rack, rack_mapped)
-
+					rack_links = topology.rack_link
 					# 确定相应的物理链路-- 加入到链路列表中
 					if isinstance(chose_node_list[i], str):
 						blocking_type = chose_node_list[i]
@@ -1157,7 +1166,7 @@ def request_mapping(topology, event, case_states):
 					break
 				# 没有找到合适的物理结点
 				if isinstance(chose_node_list[i], str):
-					if i == (vnf_num - 1) and False:
+					if i == (vnf_num - 1):
 						# 如果是最后一条链路，采用case
 						# 判断case之前判断是否释放对应的没有使用到的链路
 						csub_path = sub_path.next
@@ -1172,6 +1181,7 @@ def request_mapping(topology, event, case_states):
 						# 2. 找到再chosed_node_list中存储的链路
 						# 3. 其他的链路（没有被使用的)直接释放掉
 						# 排除第一步选择结点
+
 						for check_chose_node_list_node_index in range(1,len(chosed_node_list)):
 							if isinstance(chosed_node_list[check_chose_node_list_node_index], list):
 								using_link_list.extend([i[0] for i in chosed_node_list[check_chose_node_list_node_index]])
@@ -1183,20 +1193,23 @@ def request_mapping(topology, event, case_states):
 									not_use_link_list.append(not_use_link)
 						for not_use_link in not_use_link_list:
 							release_rack_osm_wss_link(topology, not_use_link)
+						rack_links = topology.rack_link
 						# case1
 						# 确定pre_rack
 						# 确定vnf
 						states = False
 						while True:
+							cTopology = copy.deepcopy(topology)
 							# states, linked, block_type = case2(topology, pre_rack, vnode, fm, rack_mapped, i)
 							# if states:
+							# 	rack_links = topology.rack_link
 							# 	success_type = "case2"
 							# 	mid_path_type = "normal"
 							# 	break
-
 							# case_test = get_link_blocking_type(1, case_test, block_type)
 							states, linked, block_type = case3(topology, pre_rack, vnode, fm, rack_mapped, i)
 							if states:
+								rack_links = topology.rack_link
 								sub_path.path_type = "bypass"
 								success_type = "case3"
 								mid_path_type = "bypass"
@@ -1204,10 +1217,15 @@ def request_mapping(topology, event, case_states):
 							case_test = get_link_blocking_type(2, case_test, block_type)
 							# states, linked, block_type = case1(topology, pre_rack, vnode, fm, rack_mapped, i)
 							# if states:
+							# 	rack_links = topology.rack_link
 							# 	success_type = "case1"
 							# 	mid_path_type = "normal"
 							# 	break
 							# case_test = get_link_blocking_type(0, case_test, block_type)
+							# 映射失败，整个状态恢复
+							del topology
+							topology = cTopology
+							rack_links = topology.rack_link
 							mid_path_type = None
 							break
 
@@ -1239,7 +1257,7 @@ def request_mapping(topology, event, case_states):
 							if not topology.racks[str(sub_path.first_rack)].mapping_sc:
 								topology.racks[str(sub_path.first_rack)].mapping_sc = {}
 							topology.racks[str(sub_path.first_rack)].mapping_sc[sub_path.request_num] = (vnf_num, sorted_rack, sorted_vnf, sub_path)
-							return None, sub_path, sub_node_path, success_type	
+							return None, sub_path, sub_node_path, success_type, topology	
 					chose_vnf_list[i] = None
 					i -= 1
 					continue
@@ -1253,7 +1271,6 @@ def request_mapping(topology, event, case_states):
 			# 确认当前映射的rack
 			chose_rack = chosed_node_list[i].pop(0)
 			
-
 			rack_mapped.value[i] = chose_rack[1].end_rack.rack_num
 
 			csub_path = sub_path
@@ -1282,5 +1299,4 @@ def request_mapping(topology, event, case_states):
 	if not topology.racks[str(first_rack)].mapping_sc:
 		topology.racks[str(first_rack)].mapping_sc = {}
 	topology.racks[str(first_rack)].mapping_sc[sub_path.request_num] = (vnf_num, sorted_rack, sorted_vnf, sub_path)
-
-	return None, sub_path, sub_node_path, success_type
+	return None, sub_path, sub_node_path, success_type, topology
