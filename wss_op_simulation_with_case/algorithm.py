@@ -870,7 +870,7 @@ def request_mapping(topology, event, case_states):
 			# sorted_rack = list(rack_mapped.value.values())
 			# sub_path.first_rack = first_rack
 			# topology.racks[str(first_rack)].mapping_sc[sub_path.request_num] = (vnf_num, sorted_rack, sorted_vnf, sub_path)
-			if topology.racks[str(chose_rack)].mapping_sc and False:
+			if topology.racks[str(chose_rack)].mapping_sc:
 				# 只有当存在着映射链路时才进行设置
 				for requestNum, requestPath in topology.racks[str(chose_rack)].mapping_sc.items():
 					if set(requestPath[2]) > set(vnfList) and (len(requestPath[2]) - len(vnfList)) == 1:
@@ -1198,7 +1198,7 @@ def request_mapping(topology, event, case_states):
 						# 确定pre_rack
 						# 确定vnf
 						states = False
-						while True:
+						while True and False:
 							cTopology = copy.deepcopy(topology)
 							# states, linked, block_type = case2(topology, pre_rack, vnode, fm, rack_mapped, i)
 							# if states:

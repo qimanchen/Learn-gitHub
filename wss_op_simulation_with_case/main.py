@@ -230,13 +230,19 @@ def main():
 	# 请求中的vnf的数量
 	n_point = Point(5)
 	# seed用于生成请求
-	set_seed_point = Point(3)
+	# set_seed_point = Point(3)
+	set_seed_point = Point(5)
+	# set_seed_point = Point(7)
+	# set_seed_point = Point(3)
 	# erlang
 	lambda_start = 1/ERLANG
 	# 请求的数量
 	req_sum = Point(0)
 	# seed用于泊松到达控制
-	seed_point = Point(22)
+	# seed_point = Point(22)
+	seed_point = Point(33)
+	# seed_point = Point(11)
+	# seed_point = Point(44)
 	# 控制服务时间的泊松分布
 	new_request_time_point = Point(0)
 	# 初始化队列
