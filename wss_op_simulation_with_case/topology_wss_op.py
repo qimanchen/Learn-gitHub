@@ -451,7 +451,7 @@ class WSS(object):
 		if self._wss_type == "down":
 			# 确定输出端口
 			min_num = min(self.out_port_usenum.values())
-			if min_num == 3:
+			if min_num == WSSSLOT//4:
 				return False
 			for port, num in self.out_port_usenum.items():
 				if num == min_num:
@@ -459,7 +459,7 @@ class WSS(object):
 		elif self._wss_type == "up":
 			# 确定输入端口
 			min_num = min(self.in_port_usenum.values())
-			if min_num == 3:
+			if min_num == WSSSLOT//4:
 				return False
 			for port, num in self.in_port_usenum.items():
 				if num == min_num:

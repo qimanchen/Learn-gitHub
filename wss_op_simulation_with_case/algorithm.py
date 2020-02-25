@@ -18,7 +18,7 @@ from creat_link import release_rack_osm_wss_link
 from create_switch_link import creat_rack_switch_link
 from topology_wss_op import RackLink
 from modify_osm_link import change_osm_link
-from wss_osm_para import BVTNUM, DEGREE
+from wss_osm_para import BVTNUM, DEGREE, WSSSLOT
 
 
 class PP(object):
@@ -422,7 +422,11 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 					# bypass链长度
 					bypassLinkLength = len(mm_osm_link.wss_switch_link) if mm_osm_link.wss_switch_link else 0
 					# 注意判断条件（边界条件）
-					if (normalLinkLength + bypassLinkLength) < BVTNUM//DEGREE:
+					# 20200217的更新
+					balance_bvt = BVTNUM//DEGREE
+					load_balance_bvt = balance_bvt if BVTNUM/DEGREE<=balance_bvt else balance_bvt+1
+					###
+					if (normalLinkLength + bypassLinkLength) < WSSSLOT//4:
 						chosed_new_create_link_object = creat_rack_osm_wss_link(topology, pre_rack, mm_rack)
 						if isinstance(chosed_new_create_link_object, str):
 							if chosed_new_create_link_object in ["noStartOutPort","noStartInPort", "noSameSlot"]:
@@ -1198,7 +1202,7 @@ def request_mapping(topology, event, case_states):
 						# 确定pre_rack
 						# 确定vnf
 						states = False
-						while True:
+						while True and False:
 							cTopology = copy.deepcopy(topology)
 							# states, linked, block_type = case2(topology, pre_rack, vnode, fm, rack_mapped, i)
 							# if states:
