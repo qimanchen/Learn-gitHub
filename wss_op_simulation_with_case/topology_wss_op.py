@@ -28,7 +28,7 @@ def create_topology(num_node=RACKNUM, degree=DEGREE):
 	生成后不在进行更改
 	除非在程序运行时动态改变
 	"""
-	filename = "topo_file/rack{}_degree{}.txt".format(num_node, degree)
+	filename = "topo_file3/rack{}_degree{}.txt".format(num_node, degree)
 
 	if os.path.exists(filename):
 		logger.info("%s 文件已存在，请不要重复建立！" % (filename))

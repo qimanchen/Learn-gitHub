@@ -8,7 +8,7 @@
 所有的公共参数
 """
 # load
-ERLANG = 320
+ERLANG = 300
 # 虚拟网络功能链参数
 # 总仿真数
 ALL_SIMULATION_NUM=200000
