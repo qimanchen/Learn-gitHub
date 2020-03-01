@@ -11,6 +11,8 @@ from event_request import RequestEvent
 from global_params import START_SIM
 # 导入对应的load
 from global_params import ERLANG
+# 导入总仿真数
+from global_params import ALL_SIMULATION_NUM, GET_ONE_SIMULATION_RESULTS
 # 导入请求生成库
 from request_set import create_all_request
 # 导入拓扑生成程序
@@ -231,8 +233,8 @@ def main():
 	n_point = Point(5)
 	# seed用于生成请求
 	# set_seed_point = Point(3)
-	set_seed_point = Point(5)
-	# set_seed_point = Point(7)
+	# set_seed_point = Point(5)
+	set_seed_point = Point(7)
 	# set_seed_point = Point(3)
 	# erlang
 	lambda_start = 1/ERLANG
@@ -240,8 +242,8 @@ def main():
 	req_sum = Point(0)
 	# seed用于泊松到达控制
 	# seed_point = Point(22)
-	seed_point = Point(33)
-	# seed_point = Point(11)
+	# seed_point = Point(33)
+	seed_point = Point(11)
 	# seed_point = Point(44)
 	# 控制服务时间的泊松分布
 	new_request_time_point = Point(0)
@@ -314,7 +316,6 @@ def main():
 	# wss同上端端口，slot的选择
 	# 操作端口连接
 	# 操作slot连接
-
 	# 统计链路是否使用了新的链路
 	# 使用了新的链路
 	pp.use_new_link = 0
@@ -348,7 +349,7 @@ def main():
 
 			all_test += 1
 			
-			if (all_test % 10000) == 0:
+			if (all_test % GET_ONE_SIMULATION_RESULTS) == 0:
 				
 				blocking = pp.fail_num/pp.process_request # 整体阻塞率
 				no_bandwidth_num_blocking = pp.no_bandwidth_num/pp.process_request # 没有波长资源而阻塞
@@ -439,7 +440,7 @@ def main():
 				rack_downwss_inport = list(map(sum,zip(rack_downwss_inport, crack_downwss_inport)))
 				rack_downwss_outport = list(map(sum,zip(rack_downwss_outport, crack_downwss_outport)))
 				rack_downwss_bypass = list(map(sum,zip(rack_downwss_bypass, crack_downwss_bypass)))
-			if (all_test == 100000):
+			if (all_test == ALL_SIMULATION_NUM):
 				# 仿真数量的上限
 				blocking = pp.fail_num/pp.process_request # 整体阻塞率
 				no_bandwidth_num_blocking = pp.no_bandwidth_num/pp.process_request # 没有波长资源而阻塞

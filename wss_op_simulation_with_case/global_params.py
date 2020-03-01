@@ -8,8 +8,12 @@
 所有的公共参数
 """
 # load
-ERLANG = 170
+ERLANG = 320
 # 虚拟网络功能链参数
+# 总仿真数
+ALL_SIMULATION_NUM=200000
+# 每次取数据的平局数
+GET_ONE_SIMULATION_RESULTS=10000
 
 # 1. 虚拟网络功能类型参数
 VNF_TYPE_NUM_MAX = 20

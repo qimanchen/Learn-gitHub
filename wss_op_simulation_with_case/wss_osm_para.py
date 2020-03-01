@@ -24,7 +24,10 @@ M=20, S=48
 100G -- 8,8,10 
 分别对应 one-, two-, three-hop
 """
-
+# case类型 
+CASETYPE = "nocase"
+# CASETYPE = "case3"
+# CASETYPE = "case4"
 # 上层的连接度
 # 参考范围 4 to 8
 DEGREE = 4
@@ -32,7 +35,7 @@ DEGREE = 4
 # 每一台rack的收发机的数量
 # 参考范围 16 to 48
 # 限定每个端口的发射数量不能超过3个
-BVTNUM = 16
+BVTNUM = 24
 
 # 系统中rack的数量
 # 参考范围32 to 96
@@ -49,4 +52,4 @@ OSMSIZE = DEGREE * RACKNUM
 # wss中slot的数量
 # slot plan 设定为，每四个slot为一个整体
 # [1, 2, ... , 12]
-WSSSLOT = 16
+WSSSLOT = 24
