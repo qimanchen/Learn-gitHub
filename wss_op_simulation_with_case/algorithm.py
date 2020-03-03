@@ -84,11 +84,25 @@ def create_max_array(topology, vnode, vnf_num):
 	:param vnode: {vnode_num: } # vnf结点字典
 	:param vnf_num: vnf的个数
 	"""
+	# racks = topology.racks
+	# rack_num = topology.rack_num
+	# osm_links = topology.link
+	rack_links = topology.rack_link
+	# index_link = topology.index_link
+
+	not_use_link_list = []
+	for not_use_link in rack_links:
+		if rack_links[not_use_link].start_wss_link.bandwidth_avaliable==rack_links[not_use_link].start_wss_link.bandwidth:
+			not_use_link_list.append(not_use_link)
+	for not_use_link in not_use_link_list:
+		release_rack_osm_wss_link(topology, not_use_link)
+
+	racks = topology.racks
 	rack_num = topology.rack_num
 	osm_links = topology.link
 	rack_links = topology.rack_link
 	index_link = topology.index_link
-	
+
 	# max_mat = [[0 for i in range(vnf_num)] for _ in range(rack_num)]
 	max_mat = [None for _ in range(rack_num)]
 
@@ -108,15 +122,19 @@ def create_max_array(topology, vnode, vnf_num):
 					if not osm_link.wss_link:
 						# 建立新的链路
 						creat_state = creat_rack_osm_wss_link(topology, in_rack, out_rack)
-						max_bandwidth = creat_state.start_wss_link.bandwidth_avaliable
+						max_bandwidth = creat_state.start_wss_link.bandwidth_avaliable + (DEGREE*WSSSLOT//4 - sum(creat_state.start_rack.up_wss.out_port_usenum.values()))*creat_state.start_wss_link.bandwidth
 						# 直接跳过
 						continue
 					# 遍历两结点之间已经建立的链路
 					for wss_ports, wss_link in osm_link.wss_link.items():
 						# 找到对应的终结点
 						# 去除之前资源限制的判断 -- 2019/8/24
-						if wss_link.bandwidth_avaliable > max_bandwidth:
-							max_bandwidth = wss_link.bandwidth_avaliable
+						wss_ports_start_rack = wss_ports.split('_')[0]
+						start_rack = racks[wss_ports_start_rack]
+						# 最大带宽考虑其余端口的使用情况
+						mid_max_bandwidth = wss_link.bandwidth_avaliable + (DEGREE*WSSSLOT//4 - sum(start_rack.up_wss.out_port_usenum.values()))*wss_link.bandwidth
+						if mid_max_bandwidth > max_bandwidth:
+							max_bandwidth = mid_max_bandwidth
 			mid_max[j] = max_bandwidth
 		max_mat[in_rack-1] = mid_max
 	return max_mat
