@@ -122,7 +122,9 @@ def create_max_array(topology, vnode, vnf_num):
 					if not osm_link.wss_link:
 						# 建立新的链路
 						creat_state = creat_rack_osm_wss_link(topology, in_rack, out_rack)
-						max_bandwidth = creat_state.start_wss_link.bandwidth_avaliable + (DEGREE*WSSSLOT//4 - sum(creat_state.start_rack.up_wss.out_port_usenum.values()))*creat_state.start_wss_link.bandwidth
+						max_bandwidth = creat_state.start_wss_link.bandwidth_avaliable + \
+						(DEGREE*WSSSLOT//4 - sum(creat_state.start_rack.up_wss.out_port_usenum.values()))*\
+						creat_state.start_wss_link.bandwidth
 						# 直接跳过
 						continue
 					# 遍历两结点之间已经建立的链路
@@ -132,7 +134,8 @@ def create_max_array(topology, vnode, vnf_num):
 						wss_ports_start_rack = wss_ports.split('_')[0]
 						start_rack = racks[wss_ports_start_rack]
 						# 最大带宽考虑其余端口的使用情况
-						mid_max_bandwidth = wss_link.bandwidth_avaliable + (DEGREE*WSSSLOT//4 - sum(start_rack.up_wss.out_port_usenum.values()))*wss_link.bandwidth
+						mid_max_bandwidth = wss_link.bandwidth_avaliable + \
+						(DEGREE*WSSSLOT//4 - sum(start_rack.up_wss.out_port_usenum.values()))*wss_link.bandwidth
 						if mid_max_bandwidth > max_bandwidth:
 							max_bandwidth = mid_max_bandwidth
 			mid_max[j] = max_bandwidth
