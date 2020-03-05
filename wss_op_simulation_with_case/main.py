@@ -13,6 +13,7 @@ from global_params import START_SIM
 from global_params import ERLANG
 # 导入总仿真数
 from global_params import ALL_SIMULATION_NUM, GET_ONE_SIMULATION_RESULTS
+from global_params import SET_SEED_POINT, SEED_POINT
 # 导入请求生成库
 from request_set import create_all_request
 # 导入拓扑生成程序
@@ -234,7 +235,7 @@ def main():
 	# seed用于生成请求
 	# set_seed_point = Point(3)
 	# set_seed_point = Point(5)
-	set_seed_point = Point(7)
+	set_seed_point = Point(SET_SEED_POINT)
 	# set_seed_point = Point(3)
 	# erlang
 	lambda_start = 1/ERLANG
@@ -243,7 +244,7 @@ def main():
 	# seed用于泊松到达控制
 	# seed_point = Point(22)
 	# seed_point = Point(33)
-	seed_point = Point(11)
+	seed_point = Point(SEED_POINT)
 	# seed_point = Point(44)
 	# 控制服务时间的泊松分布
 	new_request_time_point = Point(0)
