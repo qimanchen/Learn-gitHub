@@ -132,9 +132,24 @@ def event_handler(topology, h, pp, case_states):
 			elif blocking_type == "other":
 				pp.no_bandwidth_num += 1
 
+		# 记录所有请求的映射状态
+		# csub_path = sub_path.next
+		# with open(r'H:\gitHub_project\Learn-gitHub\wss_op_simulation_with_case\data\request_mapping_status2.txt','a') as f:
+		# 	f.write("request_num: "+str(sub_path.request_num)+'\t' + \
+		# 		"request_length: "+str(sub_path.request_len)+'\t' +\
+		# 		"blocking_type: " + str(blocking_type)+'\t' +\
+		# 		"path_type: " + str(sub_path.path_type)+'\n')
+		# 	while csub_path:
+		# 		f.write("start_rack,end_rack,start_up_wss_inport,start_up_wss_outport: " + str(csub_path.rack_link) + '\t'+\
+		# 			"start_vnf: " + str(csub_path.start_vnf) +'\t' + \
+		# 			"end_vnf: " + str(csub_path.end_vnf)+'\t' +\
+		# 			"path_type: " + str(csub_path.path_type)+'\n')
+		# 		csub_path = csub_path.next
+		sub_path = sub_path if not blocking_type else None
 		# 更新请求状态
 		service_time = h.next.service_time + h.next.create_time
 		add_request(h, LIGHTPATH_REQ_END, h.next.req_graph_ar, h.next.request, service_time, 0, h.next.request_id, h.next.vnf_num,sub_path)
+		
 		# 更新请求队列
 		tmp_h = h.next
 		h.next = tmp_h.next

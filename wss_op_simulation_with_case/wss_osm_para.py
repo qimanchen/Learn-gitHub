@@ -30,7 +30,7 @@ CASETYPE = "nocase"
 # CASETYPE = "case4"
 # 上层的连接度
 # 参考范围 4 to 8
-DEGREE = 4
+DEGREE = 6
 
 # 每一台rack的收发机的数量
 # 参考范围 16 to 48
@@ -52,4 +52,4 @@ OSMSIZE = DEGREE * RACKNUM
 # wss中slot的数量
 # slot plan 设定为，每四个slot为一个整体
 # [1, 2, ... , 12]
-WSSSLOT = 24
+WSSSLOT = 20

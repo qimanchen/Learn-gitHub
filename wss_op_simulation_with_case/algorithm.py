@@ -860,7 +860,7 @@ def request_mapping(topology, event, case_states):
 				# 当检测到没有其他可选vnf时
 				if not chosed_vnf_list[i]:
 					# 没有其他可选的vnf
-					return blocking_type, None, None, success_type, topology
+					return blocking_type, sub_path, None, success_type, topology
 
 				for vnf in chosed_vnf_list[i]:
 					
@@ -877,7 +877,7 @@ def request_mapping(topology, event, case_states):
 					break
 				# 当找不到对应的物理结点时
 				if isinstance(chose_node_list[i], str):
-					return blocking_type, None, None, success_type, topology
+					return blocking_type, sub_path, None, success_type, topology
 			# 清除之前映射的路径
 			sub_path.next = None
 			# 建立相应的物理路径
