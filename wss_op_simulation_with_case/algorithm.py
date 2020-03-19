@@ -259,7 +259,7 @@ def vnss(r_g_a, topology, vnode, max_mat,fm, check_vnf, on, pre_rack):
 	return chosed_vnf
 
 
-def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
+def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped, request_num=None):
 	"""
 	确定某个vnf可以映射的物理结点
 	第一个结点时只是确定第一个rack
@@ -348,6 +348,10 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 		# 取得有最大带宽的rack的列表
 		# 此处取得的最大带宽可能已经不存在了 -- case处理过程中被释放掉了
 		max_band_rack = [i for i in mid_sum_max_band if mid_sum_max_band[i] == max_band]
+		# if request_num == 678:
+		# 	print(mid_sum_max_band)
+		# 	print(max_band_rack)
+		# 	raise
 		# 存在这样的链路
 		# 对应着有最大的带宽，但是没有对应的链路建立
 		if not max_band_rack:
@@ -363,6 +367,11 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 				mid_id_list = wss_link.split('_')
 				if int(mid_id_list[0]) == pre_rack and int(mid_id_list[1]) == rack_id:
 					mid_rack_link = rack_links[wss_link]
+					# if request_num == 678:
+					# 	print(mid_rack_link.start_rack.avaliable_resource, vnode[pre_vnf].computer_require)
+					# 	print(mid_rack_link.end_rack.avaliable_resource, vnode[vnf_id].computer_require)
+					# 	print(mid_rack_link.start_wss_link.bandwidth_avaliable, vnode[pre_vnf].bandwidth_require)
+					# 	print()
 					if mid_rack_link.start_rack.avaliable_resource >= vnode[pre_vnf].computer_require:
 						if mid_rack_link.end_rack.avaliable_resource >= vnode[vnf_id].computer_require:
 							if mid_rack_link.start_wss_link.bandwidth_avaliable >= vnode[pre_vnf].bandwidth_require:
@@ -407,7 +416,16 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped):
 							blocking_type = "noEndHost"
 					else:
 						blocking_type = "noStartHost"
-		if (blocking_type=="other" or blocking_type is None) and not chosed_node:
+		# if request_num == 678:
+		# 	print(chosed_node)
+		# 	print(not chosed_node)
+		# 	raise
+		#### 20200318 发现当前发射机仍然有可有发射机，但是没有尝试建立新的链路
+		if (blocking_type=="other" or blocking_type is None) or not chosed_node:
+			# if request_num == 678:
+			# 	print("test")
+			# 	raise
+
 			# 两种情况
 			# 1. 已建立链路没法满足对应的带宽需求
 			# 2. 对应选择出的最大带宽的rack链路被释放掉了--case处理时
@@ -792,10 +810,21 @@ def request_mapping(topology, event, case_states):
 	r_g_a = event.req_graph_ar # 请求关系矩阵
 	vnf_num = event.vnf_num # vnf的个数
 	request_num = event.request_id
+
+	# if request_num == 679:
+	# 	raise
 	rack_links = topology.rack_link
 	racks = topology.racks
 	links = topology.link
 	
+	# if request_num == 678:
+	# 	for Rack in racks.values():
+	# 		print(Rack._rack_num)
+	# 		print(len(Rack.recv_using))
+	# 		print(len(Rack.trans_using))
+	# 		print(Rack.avaliable_resource)
+	# 		print()
+	# 	print('#'*20)
 	fm = PP() # 存储整个已经映射的vnf -- 字典
 	fm.value = {} # {映射顺序：vnf_id}
 
@@ -816,6 +845,15 @@ def request_mapping(topology, event, case_states):
 	chosed_node_list = [None for _ in range(vnf_num)]
 
 	max_mat = create_max_array(topology, vnode, vnf_num) # 最大带宽矩阵
+	# if request_num == 678:
+	# 	for Rack in racks.values():
+	# 		print(Rack._rack_num)
+	# 		print(len(Rack.recv_using))
+	# 		print(len(Rack.trans_using))
+	# 		print(Rack.avaliable_resource)
+	# 		print()
+	# 	print('#'*20)
+	# 	raise
 	
 	sub_node_path = VNodePath(-1) # 映射结点路径
 	sub_path = ShortPath(0) # 映射路径
@@ -878,6 +916,8 @@ def request_mapping(topology, event, case_states):
 				# 当找不到对应的物理结点时
 				if isinstance(chose_node_list[i], str):
 					return blocking_type, sub_path, None, success_type, topology
+			# if request_num == 678:
+			# 	print(chose_node_list)
 			# 清除之前映射的路径
 			sub_path.next = None
 			# 建立相应的物理路径
@@ -1149,7 +1189,9 @@ def request_mapping(topology, event, case_states):
 			# 不是第一个结点
 			# 得到前一个物理结点
 			pre_rack = rack_mapped.value[i-1]
-
+			# if request_num == 678:
+			# 	print(pre_rack)
+			# 	raise
 			# 没有进行初次判断时
 			if not chose_vnf_list[i]:
 				# 判断是否先后顺序
@@ -1180,7 +1222,10 @@ def request_mapping(topology, event, case_states):
 					continue
 				# 选择相应的物理节点
 				for vnf in chosed_vnf_list[i]:
-					chose_node_list[i] = enss(r_g_a, topology, vnode, max_mat, fm, vnf,i,pre_rack, rack_mapped)
+					chose_node_list[i] = enss(r_g_a, topology, vnode, max_mat, fm, vnf,i,pre_rack, rack_mapped,request_num)
+					# if request_num == 678:
+					# 	print(chose_node_list[i])
+					# 	raise
 					rack_links = topology.rack_link
 					# 确定相应的物理链路-- 加入到链路列表中
 					if isinstance(chose_node_list[i], str):
@@ -1286,6 +1331,8 @@ def request_mapping(topology, event, case_states):
 					chose_vnf_list[i] = None
 					i -= 1
 					continue
+			# if request_num == 678:
+			# 	print(chose_node_list)
 			# 清除之前映射的结点
 			csub_path = sub_path
 			# 注意链路的映射是从1开始的

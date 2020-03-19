@@ -30,7 +30,7 @@ CASETYPE = "nocase"
 # CASETYPE = "case4"
 # 上层的连接度
 # 参考范围 4 to 8
-DEGREE = 6
+DEGREE = 4
 
 # 每一台rack的收发机的数量
 # 参考范围 16 to 48
