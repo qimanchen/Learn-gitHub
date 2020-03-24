@@ -292,6 +292,7 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped, 
 		for first_chosed_rack in racks:
 			first_chosed_using_port_num[first_chosed_rack] = sum([i for i in racks[first_chosed_rack].up_wss.out_port_usenum.values()])
 		min_first_chosed_using_port_num = min(first_chosed_using_port_num.values())
+		
 		for min_rack in first_chosed_using_port_num:
 			if first_chosed_using_port_num[min_rack] == min_first_chosed_using_port_num:
 				chosed_node.append(int(min_rack))
@@ -348,10 +349,10 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped, 
 		# 取得有最大带宽的rack的列表
 		# 此处取得的最大带宽可能已经不存在了 -- case处理过程中被释放掉了
 		max_band_rack = [i for i in mid_sum_max_band if mid_sum_max_band[i] == max_band]
-		# if request_num == 678:
+		# if request_num == 486:
+		# 	print("test node status")
 		# 	print(mid_sum_max_band)
 		# 	print(max_band_rack)
-		# 	raise
 		# 存在这样的链路
 		# 对应着有最大的带宽，但是没有对应的链路建立
 		if not max_band_rack:
@@ -367,7 +368,8 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped, 
 				mid_id_list = wss_link.split('_')
 				if int(mid_id_list[0]) == pre_rack and int(mid_id_list[1]) == rack_id:
 					mid_rack_link = rack_links[wss_link]
-					# if request_num == 678:
+					# if request_num == 486:
+					# 	print("test resource status")
 					# 	print(mid_rack_link.start_rack.avaliable_resource, vnode[pre_vnf].computer_require)
 					# 	print(mid_rack_link.end_rack.avaliable_resource, vnode[vnf_id].computer_require)
 					# 	print(mid_rack_link.start_wss_link.bandwidth_avaliable, vnode[pre_vnf].bandwidth_require)
@@ -416,10 +418,9 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped, 
 							blocking_type = "noEndHost"
 					else:
 						blocking_type = "noStartHost"
-		# if request_num == 678:
+		# if request_num == 486:
 		# 	print(chosed_node)
 		# 	print(not chosed_node)
-		# 	raise
 		#### 20200318 发现当前发射机仍然有可有发射机，但是没有尝试建立新的链路
 		if (blocking_type=="other" or blocking_type is None) or not chosed_node:
 			# if request_num == 678:
@@ -449,10 +450,15 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped, 
 				chosed_used_num_dict[m_rack] = len(osm_link[str(pre_rack)][m_rack-1].start_port.physic_port.wss_port.slot_use)
 			# 进行排序--根据对应slot_use
 			sorted_chosed_rack = sorted(chosed_used_num_dict, key=lambda x: chosed_used_num_dict[x])
+			# if request_num == 486:
+			# 	print("test_node")
+			# 	print(sorted_chosed_rack)
 			chosed_new_create_link_object = None
 			for mm_rack in sorted_chosed_rack:
 				# 判断对应的结点的带宽资源是否满足
 				if racks[str(mm_rack)].avaliable_resource >= vnode[vnf_id].computer_require:
+					# if request_num == 486:
+					# 	print("是否进入")
 					mm_osm_link = osm_link[str(pre_rack)][mm_rack-1]
 					# 判断负载均衡是否符合
 					normalLinkLength = len(mm_osm_link.wss_link) if mm_osm_link.wss_link else 0
@@ -468,6 +474,11 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped, 
 					if (normalLinkLength + bypassLinkLength) < WSSSLOT//4:
 						chosed_new_create_link_object = creat_rack_osm_wss_link(topology, pre_rack, mm_rack)
 						if isinstance(chosed_new_create_link_object, str):
+							# if request_num == 486:
+							# 	print(pre_rack)
+							# 	print(len(racks[str(pre_rack)].trans_using))
+							# 	print("实际阻塞类型")
+							# 	print(chosed_new_create_link_object)
 							if chosed_new_create_link_object in ["noStartOutPort","noStartInPort", "noSameSlot"]:
 								blocking_type = "noStartSlot"
 							elif chosed_new_create_link_object in ["noEndInPort", "noEndOutPort"]:
@@ -483,10 +494,14 @@ def enss(r_g_a, topology, vnode, max_mat,fm, vnf_id, on, pre_rack, rack_mapped, 
 							break
 					else:
 						blocking_type = "noStartSlot"
+						# if request_num == 486:
+						# 	print("发射机使用数量超了")
 				else:
 					blocking_type = "noEndHost"
 			else:
-				blocking_type = "noStartSlot"
+				blocking_type = "noStartSlot" if not blocking_type else blocking_type
+				# if request_num == 486:
+				# 	print("所有连接端口的超了")
 
 	if not chosed_node:
 		# if on == vnf_num-1:
@@ -811,13 +826,13 @@ def request_mapping(topology, event, case_states):
 	vnf_num = event.vnf_num # vnf的个数
 	request_num = event.request_id
 
-	# if request_num == 679:
+	# if request_num == 487:
 	# 	raise
 	rack_links = topology.rack_link
 	racks = topology.racks
 	links = topology.link
 	
-	# if request_num == 678:
+	# if request_num == 486:
 	# 	for Rack in racks.values():
 	# 		print(Rack._rack_num)
 	# 		print(len(Rack.recv_using))
@@ -916,7 +931,8 @@ def request_mapping(topology, event, case_states):
 				# 当找不到对应的物理结点时
 				if isinstance(chose_node_list[i], str):
 					return blocking_type, sub_path, None, success_type, topology
-			# if request_num == 678:
+			# if request_num == 486:
+			# 	print("chose_node_list")
 			# 	print(chose_node_list)
 			# 清除之前映射的路径
 			sub_path.next = None
@@ -1331,7 +1347,8 @@ def request_mapping(topology, event, case_states):
 					chose_vnf_list[i] = None
 					i -= 1
 					continue
-			# if request_num == 678:
+			# if request_num == 486:
+			# 	print("chose_node_list")
 			# 	print(chose_node_list)
 			# 清除之前映射的结点
 			csub_path = sub_path

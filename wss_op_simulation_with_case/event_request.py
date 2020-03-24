@@ -134,7 +134,7 @@ def event_handler(topology, h, pp, case_states):
 
 		# 记录所有请求的映射状态
 		# csub_path = sub_path.next
-		# with open(r'H:\gitHub_project\Learn-gitHub\wss_op_simulation_with_case\data\request_mapping_status2.txt','a') as f:
+		# with open(r'H:\gitHub_project\Learn-gitHub\wss_op_simulation_with_case\data\request_mapping_status.txt','a') as f:
 		# 	f.write("request_num: "+str(sub_path.request_num)+'\t' + \
 		# 		"request_length: "+str(sub_path.request_len)+'\t' +\
 		# 		"blocking_type: " + str(blocking_type)+'\t' +\
